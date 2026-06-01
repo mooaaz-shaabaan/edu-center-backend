@@ -1,0 +1,451 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────
+// ENUMS
+// ─────────────────────────────────────────
+
+enum Role {
+  admin
+  receptionist
+}
+
+enum SyncStatus {
+  pending
+  synced
+  failed
+}
+
+enum PaymentStatus {
+  paid
+  partial
+  unpaid
+}
+
+enum AttendanceStatus {
+  present
+  absent
+  late
+}
+
+enum TransactionType {
+  deposit
+  withdrawal
+}
+
+enum NotificationType {
+  welcome
+  installment_reminder
+  exam_notification
+  conflict_alert
+}
+
+enum ConflictStatus {
+  unresolved
+  resolved
+}
+
+// ─────────────────────────────────────────
+// 1. BRANCHES
+// ─────────────────────────────────────────
+model Branch {
+  id          Int      @id @default(autoincrement())
+  name        String
+  address     String?
+  phone       String?
+  is_active   Boolean  @default(true)
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+  sync_status SyncStatus @default(synced)
+
+  users       User[]
+  shifts      Shift[]
+  rooms       Room[]
+  students    Student[]
+  courses     Course[]
+  semesters   Semester[]
+
+  @@map("branches")
+}
+
+// ─────────────────────────────────────────
+// 2. USERS (Admin + Receptionist)
+// ─────────────────────────────────────────
+model User {
+  id          Int      @id @default(autoincrement())
+  name        String
+  email       String   @unique
+  password    String
+  role        Role     @default(receptionist)
+  is_active   Boolean  @default(true)
+  branch_id   Int?
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+  sync_status SyncStatus @default(synced)
+
+  branch      Branch?  @relation(fields: [branch_id], references: [id])
+  shifts      Shift[]
+
+  @@map("users")
+}
+
+// ─────────────────────────────────────────
+// 3. SHIFTS (الجلسات)
+// ─────────────────────────────────────────
+model Shift {
+  id           Int       @id @default(autoincrement())
+  user_id      Int
+  branch_id    Int
+  opened_at    DateTime  @default(now())
+  closed_at    DateTime?
+  total_income Decimal   @default(0) @db.Decimal(10, 2)
+  total_expenses Decimal @default(0) @db.Decimal(10, 2)
+  net_total    Decimal   @default(0) @db.Decimal(10, 2)
+  notes        String?
+  created_at   DateTime  @default(now())
+  updated_at   DateTime  @updatedAt
+  sync_status  SyncStatus @default(pending)
+
+  user         User      @relation(fields: [user_id], references: [id])
+  branch       Branch    @relation(fields: [branch_id], references: [id])
+  attendance   Attendance[]
+  payments     Payment[]
+  expenses     Expense[]
+  cash_transactions CashTransaction[]
+
+  @@map("shifts")
+}
+
+// ─────────────────────────────────────────
+// 4. ROOMS (الأوض)
+// ─────────────────────────────────────────
+model Room {
+  id          Int      @id @default(autoincrement())
+  name        String
+  capacity    Int?
+  branch_id   Int
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+  sync_status SyncStatus @default(synced)
+
+  branch      Branch   @relation(fields: [branch_id], references: [id])
+  schedules   Schedule[]
+
+  @@map("rooms")
+}
+
+// ─────────────────────────────────────────
+// 5. COURSES (الكورسات)
+// ─────────────────────────────────────────
+model Course {
+  id          Int      @id @default(autoincrement())
+  name        String
+  description String?
+  price       Decimal  @db.Decimal(10, 2)
+  branch_id   Int
+  is_active   Boolean  @default(true)
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+  sync_status SyncStatus @default(synced)
+
+  branch      Branch   @relation(fields: [branch_id], references: [id])
+  enrollments Enrollment[]
+  attendance  Attendance[]
+  schedules   Schedule[]
+  exams       Exam[]
+  
+
+  @@map("courses")
+}
+
+// ─────────────────────────────────────────
+// 6. STUDENTS (الطلاب)
+// ─────────────────────────────────────────
+model Student {
+  id              Int      @id @default(autoincrement())
+  name            String
+  phone           String
+  parent_phone    String
+  alt_phone       String?
+  qr_code         String?  @unique
+  portal_code     String   @unique
+  branch_id       Int
+  is_active       Boolean  @default(true)
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+  sync_status     SyncStatus @default(pending)
+  shift_id        Int?
+  photo           String?
+
+  branch          Branch   @relation(fields: [branch_id], references: [id])
+  wallet_enabled  Boolean @default(false)
+  wallet_balance  Float   @default(0)
+  enrollments     Enrollment[]
+  attendance      Attendance[]
+  payments        Payment[]
+  installments    Installment[]
+  grades          StudentGrade[]
+  notifications   NotificationLog[]
+
+  @@map("students")
+}
+
+// ─────────────────────────────────────────
+// 7. ENROLLMENTS (اشتراكات الطلاب)
+// ─────────────────────────────────────────
+model Enrollment {
+  id          Int      @id @default(autoincrement())
+  student_id  Int?
+  course_id   Int?
+  start_date  DateTime
+  end_date    DateTime?
+  status      PaymentStatus @default(unpaid)
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+  sync_status SyncStatus @default(pending)
+  shift_id    Int?
+  semester_id Int?
+
+  semester    Semester? @relation(fields: [semester_id], references: [id])
+  student     Student? @relation(fields: [student_id], references: [id], onDelete: SetNull)
+  course      Course? @relation(fields: [course_id], references: [id], onDelete: SetNull)
+  installments Installment[]
+
+  @@map("enrollments")
+}
+
+// ─────────────────────────────────────────
+// 8. STUDENT GRADES (درجات الطلاب)
+// ─────────────────────────────────────────
+model StudentGrade {
+  id          Int      @id @default(autoincrement())
+  student_id  Int?
+  exam_id     Int
+  grade       Decimal? @db.Decimal(5, 2)
+  max_grade   Decimal  @default(100) @db.Decimal(5, 2)
+  notes       String?
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+  sync_status SyncStatus @default(pending)
+  shift_id    Int?
+
+  student     Student? @relation(fields: [student_id], references: [id], onDelete: SetNull)
+  exam        Exam     @relation(fields: [exam_id], references: [id])
+
+  @@map("student_grades")
+}
+
+// ─────────────────────────────────────────
+// 9. SCHEDULES (الجداول الدراسية)
+// ─────────────────────────────────────────
+model Schedule {
+  id          Int      @id @default(autoincrement())
+  course_id   Int?
+  room_id     Int
+  day_of_week Int      // 0=Sunday ... 6=Saturday
+  start_time  String   // "09:00"
+  end_time    String   // "11:00"
+  teacher     String?
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+  sync_status SyncStatus @default(synced)
+  shift_id    Int?
+
+  course      Course? @relation(fields: [course_id], references: [id], onDelete: SetNull)
+  room        Room     @relation(fields: [room_id], references: [id])
+  conflicts_a ScheduleConflict[] @relation("ScheduleA")
+  conflicts_b ScheduleConflict[] @relation("ScheduleB")
+
+  @@map("schedules")
+}
+
+// ─────────────────────────────────────────
+// 10. SCHEDULE CONFLICTS (تنبيه التعارضات)
+// ─────────────────────────────────────────
+model ScheduleConflict {
+  id            Int      @id @default(autoincrement())
+  schedule_a_id Int
+  schedule_b_id Int
+  status        ConflictStatus @default(unresolved)
+  noted_at      DateTime @default(now())
+  resolved_at   DateTime?
+  sync_status   SyncStatus @default(pending)
+  shift_id      Int?
+
+  schedule_a    Schedule @relation("ScheduleA", fields: [schedule_a_id], references: [id])
+  schedule_b    Schedule @relation("ScheduleB", fields: [schedule_b_id], references: [id])
+
+  @@map("schedule_conflicts")
+}
+
+// ─────────────────────────────────────────
+// 11. EXAMS (الامتحانات)
+// ─────────────────────────────────────────
+model Exam {
+  id          Int      @id @default(autoincrement())
+  course_id   Int?
+  title       String
+  exam_date   DateTime
+  location    String?
+  notes       String?
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+  sync_status SyncStatus @default(synced)
+  shift_id    Int?
+
+  course      Course? @relation(fields: [course_id], references: [id], onDelete: SetNull)
+  grades      StudentGrade[]
+
+  @@map("exams")
+}
+
+// ─────────────────────────────────────────
+// 12. ATTENDANCE (الحضور)
+// ─────────────────────────────────────────
+model Attendance {
+  id                Int      @id @default(autoincrement())
+  student_id        Int?
+  student_name    String?
+  student_phone   String?
+  shift_id          Int?
+  course_id         Int?
+  date              DateTime @default(now())
+  status            AttendanceStatus @default(present)
+  method            String   @default("manual") // "qr" or "manual"
+  notes             String?
+  created_at        DateTime @default(now())
+  updated_at        DateTime @updatedAt
+  sync_status       SyncStatus @default(pending)
+  payment_method    String?  @default("cash")
+
+
+  student     Student? @relation(fields: [student_id], references: [id], onDelete: SetNull)
+  shift       Shift?   @relation(fields: [shift_id], references: [id])
+  course      Course? @relation(fields: [course_id], references: [id], onDelete: SetNull)
+
+  @@map("attendance")
+}
+
+// ─────────────────────────────────────────
+// 13. PAYMENTS (المدفوعات)
+// ─────────────────────────────────────────
+model Payment {
+  id           Int      @id @default(autoincrement())
+  student_id   Int?
+  shift_id     Int?
+  amount       Decimal  @db.Decimal(10, 2)
+  receipt_number String @unique
+  notes        String?
+  paid_at      DateTime @default(now())
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+  sync_status  SyncStatus @default(pending)
+
+  student     Student? @relation(fields: [student_id], references: [id], onDelete: SetNull)
+  shift        Shift?   @relation(fields: [shift_id], references: [id])
+
+  @@map("payments")
+}
+
+// ─────────────────────────────────────────
+// 14. INSTALLMENTS (الأقساط)
+// ─────────────────────────────────────────
+model Installment {
+  id            Int      @id @default(autoincrement())
+  student_id    Int?
+  enrollment_id Int
+  amount        Decimal  @db.Decimal(10, 2)
+  due_date      DateTime
+  paid_at       DateTime?
+  status        PaymentStatus @default(unpaid)
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
+  sync_status   SyncStatus @default(pending)
+  shift_id      Int?
+
+  student     Student? @relation(fields: [student_id], references: [id], onDelete: SetNull)
+  enrollment    Enrollment @relation(fields: [enrollment_id], references: [id])
+
+  @@map("installments")
+}
+
+// ─────────────────────────────────────────
+// 15. EXPENSES (المصروفات)
+// ─────────────────────────────────────────
+model Expense {
+  id          Int      @id @default(autoincrement())
+  shift_id    Int?
+  category    String
+  description String?
+  amount      Decimal  @db.Decimal(10, 2)
+  expense_date DateTime @default(now())
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+  sync_status SyncStatus @default(pending)
+
+  shift       Shift?   @relation(fields: [shift_id], references: [id])
+
+  @@map("expenses")
+}
+
+// ─────────────────────────────────────────
+// 16. CASH TRANSACTIONS (إضافة / سحب)
+// ─────────────────────────────────────────
+model CashTransaction {
+  id          Int      @id @default(autoincrement())
+  shift_id    Int?
+  type        TransactionType
+  amount      Decimal  @db.Decimal(10, 2)
+  reason      String?
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+  sync_status SyncStatus @default(pending)
+
+  shift       Shift?   @relation(fields: [shift_id], references: [id])
+
+  @@map("cash_transactions")
+}
+
+// ─────────────────────────────────────────
+// 17. NOTIFICATIONS LOG (سجل الإشعارات)
+// ─────────────────────────────────────────
+model NotificationLog {
+  id          Int      @id @default(autoincrement())
+  student_id  Int?
+  type        NotificationType
+  phone       String
+  message     String
+  status      String   @default("sent") // sent / failed
+  sent_at     DateTime @default(now())
+  sync_status SyncStatus @default(synced)
+  shift_id    Int?
+
+  student     Student? @relation(fields: [student_id], references: [id])
+
+  @@map("notifications_log")
+}
+
+// ─────────────────────────────────────────
+// 18. جدول السنوات
+// ─────────────────────────────────────────
+model Semester {
+  id          Int      @id @default(autoincrement())
+  name        String   // "الفصل الأول" / "الفصل الثاني" / "الصيفي"
+  year        String   // "2025-2026"
+  is_active   Boolean  @default(true)
+  branch_id   Int
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+  sync_status SyncStatus @default(synced)
+
+  branch      Branch   @relation(fields: [branch_id], references: [id])
+  enrollments Enrollment[]
+
+  @@map("semesters")
+}

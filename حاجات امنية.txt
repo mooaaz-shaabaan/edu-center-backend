@@ -1,0 +1,12 @@
+أهم الحاجات اللي محتاجة تتضاف للأمان:
+
+1. **`helmet`** — لإضافة HTTP headers أمنية (زي `X-Content-Type-Options`, `CSP`).
+2. **Rate limiting** (`express-rate-limit`) — يمنع brute force على `/login`.
+3. **CORS** — حالياً لو `FRONTEND_URL` مش متظبط بيرجع `*`. الأفضل يرمي error أو يستخدم `whitelist`.
+4. **Input sanitization** — الـ `name` وغيره ممكن يحمل XSS payload.
+5. **`crypto.randomInt()` بدل `Math.random()`** في توليد portal code.
+6. **الـ seed password** — ممنوع يكون hardcoded `admin123` ومطبوع في الكونسول.
+7. **Error handler** — لا ترسل `err.meta?.target` للفرونت (بيكشف أسماء الأعمدة).
+8. **`body-parser` limit** — ضبط حد لحجم الـ request body.
+
+تقدر تبدأ بـ `helmet` و `express-rate-limit` — هما الأسهل والأكثر تأثيراً.

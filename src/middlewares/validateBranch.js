@@ -28,7 +28,9 @@ module.exports = (options = {}) => {
 
       const branchId = Number(raw);
       if (!Number.isInteger(branchId) || branchId <= 0) {
-        return res.status(400).json({ success: false, message: "Invalid branch_id." });
+        return res
+          .status(400)
+          .json({ success: false, message: "Invalid branch_id." });
       }
 
       // جيب الفرع

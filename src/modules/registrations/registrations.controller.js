@@ -19,7 +19,8 @@ const newToken = () => crypto.randomBytes(24).toString("base64url");
 /// ⚠ المسار مش مثبّت في الكود: الصفحات ممكن تتحط في أي فولدر
 ///   جوه public، ولو المسار هنا مختلف عن الفولدر الحقيقي الـ QR
 ///   بيوصل لصفحة 404 ومحدش هيعرف ليه.
-const PORTAL_PATH = "/" + (process.env.PORTAL_PATH || "student").replace(/^\/+|\/+$/g, "");
+const PORTAL_PATH =
+  "/" + (process.env.PORTAL_PATH || "student").replace(/^\/+|\/+$/g, "");
 
 const linkUrl = (token) => {
   const base = (process.env.PORTAL_BASE_URL || "").replace(/\/+$/, "");
@@ -121,7 +122,9 @@ const list = async (req, res, next) => {
           branch: { select: { id: true, name: true } },
           reviewer: { select: { id: true, name: true } },
           semester: { select: { id: true, name: true, year: true } },
-          courses: { include: { course: { select: { id: true, name: true } } } },
+          courses: {
+            include: { course: { select: { id: true, name: true } } },
+          },
         },
       }),
       prisma.studentRegistration.count({ where }),

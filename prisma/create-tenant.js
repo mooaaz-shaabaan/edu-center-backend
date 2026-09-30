@@ -83,7 +83,10 @@ const main = async () => {
 
   // ── 2) تحقق من التكرار ──────────────────────────────────────
   const [slugTaken, domainTaken, emailTaken] = await Promise.all([
-    prisma.tenant.findUnique({ where: { slug }, select: { id: true, name: true } }),
+    prisma.tenant.findUnique({
+      where: { slug },
+      select: { id: true, name: true },
+    }),
     prisma.tenant.findFirst({
       where: { email_domain: domain },
       select: { id: true, name: true },
@@ -92,13 +95,15 @@ const main = async () => {
   ]);
 
   if (slugTaken) {
-    fail(`الـ slug "${slug}" مستخدم بالفعل في "${slugTaken.name}" (id: ${slugTaken.id}).`);
+    fail(
+      `الـ slug "${slug}" مستخدم بالفعل في "${slugTaken.name}" (id: ${slugTaken.id}).`,
+    );
   }
 
   if (domainTaken) {
     fail(
       `الدومين "${domain}" مستخدم بالفعل في "${domainTaken.name}" (id: ${domainTaken.id}).\n` +
-        `   كل سنتر لازم يكون له دومين مختلف، وإلا الإيميلات هتتلخبط.`
+        `   كل سنتر لازم يكون له دومين مختلف، وإلا الإيميلات هتتلخبط.`,
     );
   }
 

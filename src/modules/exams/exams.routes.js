@@ -46,7 +46,10 @@ const createSchema = z.object({
     title: z.string().trim().min(1).max(200),
     type: examType.optional(),
     exam_date: z.coerce.date(),
-    total_marks: marks.refine((v) => v > 0, "الدرجة العظمى لازم تكون أكبر من صفر"),
+    total_marks: marks.refine(
+      (v) => v > 0,
+      "الدرجة العظمى لازم تكون أكبر من صفر",
+    ),
     pass_marks: marks.nullable().optional(),
     location: z.string().max(200).nullable().optional(),
     notes: z.string().max(1000).nullable().optional(),
@@ -115,7 +118,12 @@ router.get(
   getStudentGrades,
 );
 
-router.get("/:id/sheet", validate(idParam), requireRole(...STAFF), getExamSheet);
+router.get(
+  "/:id/sheet",
+  validate(idParam),
+  requireRole(...STAFF),
+  getExamSheet,
+);
 
 router.get("/:id", validate(idParam), requireRole(...STAFF), getExam);
 

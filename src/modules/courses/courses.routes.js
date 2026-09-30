@@ -8,8 +8,13 @@ const { requireRole, STAFF, MANAGERS } = require("../../middlewares/rbac");
 const validate = require("../../middlewares/validate");
 const withNotify = require("../../core/withNotify");
 
-const { getCourses, createCourse, updateCourse, deleteCourse, getCourseStats } =
-  require("./courses.controller");
+const {
+  getCourses,
+  createCourse,
+  updateCourse,
+  deleteCourse,
+  getCourseStats,
+} = require("./courses.controller");
 
 const idField = z.coerce.number().int().positive();
 const money = z.coerce.number().positive().max(10000000);
@@ -91,39 +96,34 @@ const idParam = z.object({
 
 router.use(auth);
 
-router.get(
-  "/",
-  validate(listSchema),
-  requireRole(...STAFF),
-  getCourses
-);
+router.get("/", validate(listSchema), requireRole(...STAFF), getCourses);
 
 router.post(
   "/",
   validate(createSchema),
   requireRole(...STAFF),
-  withNotify(createCourse, "courses_updated")
+  withNotify(createCourse, "courses_updated"),
 );
 
 router.put(
   "/:id",
   validate(updateSchema),
   requireRole(...STAFF),
-  withNotify(updateCourse, "courses_updated")
+  withNotify(updateCourse, "courses_updated"),
 );
 
 router.delete(
   "/:id",
   validate(idParam),
   requireRole(...MANAGERS),
-  withNotify(deleteCourse, "courses_updated")
+  withNotify(deleteCourse, "courses_updated"),
 );
 
 router.get(
   "/:id/stats",
   validate(idParam),
   requireRole(...STAFF),
-  getCourseStats
+  getCourseStats,
 );
 
 module.exports = router;

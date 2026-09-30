@@ -39,7 +39,10 @@ const resolveDir = (value, fallback) => {
   return path.isAbsolute(v) ? v : path.join(ROOT, v);
 };
 
-const BACKUP_DIR = resolveDir(process.env.BACKUP_DIR, path.join(ROOT, "backups"));
+const BACKUP_DIR = resolveDir(
+  process.env.BACKUP_DIR,
+  path.join(ROOT, "backups"),
+);
 const MIRROR_DIR = resolveDir(process.env.BACKUP_MIRROR_DIR, null);
 
 // كام نسخة نحتفظ بيها:
@@ -72,7 +75,9 @@ function stamp(d = new Date()) {
  *    اللي اتنقلت للفلاشة هتبان كلها "النهاردة" وسياسة الحذف
  *    تتلخبط. */
 function dateFromName(name) {
-  const m = name.match(/^edu-center-(\d{4})(\d{2})(\d{2})-(\d{2})(\d{2})\.dump$/);
+  const m = name.match(
+    /^edu-center-(\d{4})(\d{2})(\d{2})-(\d{2})(\d{2})\.dump$/,
+  );
   if (!m) return null;
   const [, y, mo, d, h, mi] = m.map(Number);
   return new Date(y, mo - 1, d, h, mi);
@@ -243,14 +248,19 @@ async function main() {
   await run(
     tool(bin, "pg_dump"),
     [
-      "-h", db.host,
-      "-p", String(db.port),
-      "-U", db.user,
-      "-d", db.database,
-      "-Fc",              // صيغة مضغوطة، وبتسمح باسترجاع جزئي
-      "--no-owner",       // تترجع على أي سيرفر باسم مستخدم مختلف
+      "-h",
+      db.host,
+      "-p",
+      String(db.port),
+      "-U",
+      db.user,
+      "-d",
+      db.database,
+      "-Fc", // صيغة مضغوطة، وبتسمح باسترجاع جزئي
+      "--no-owner", // تترجع على أي سيرفر باسم مستخدم مختلف
       "--no-privileges",
-      "-f", tmp,
+      "-f",
+      tmp,
     ],
     env,
   );

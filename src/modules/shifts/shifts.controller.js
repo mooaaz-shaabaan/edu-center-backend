@@ -1,7 +1,10 @@
 // src/modules/shifts/shifts.controller.js
 const prisma = require("../../config/db");
-const { tenantWhere, requireTenantId, assertSameTenant } =
-  require("../../core/tenant");
+const {
+  tenantWhere,
+  requireTenantId,
+  assertSameTenant,
+} = require("../../core/tenant");
 const { getAllowedBranchIds } = require("../../core/branchScope");
 const {
   isConnected,
@@ -108,7 +111,7 @@ const resolveDrawerForOpen = async (tenantId, branchId, drawerId) => {
     throw coded(
       400,
       "NO_DRAWER",
-      "الفرع ده مالوش درج — لازم المدير يضيف درج الأول."
+      "الفرع ده مالوش درج — لازم المدير يضيف درج الأول.",
     );
   }
   if (actives.length === 1) return actives[0];
@@ -170,7 +173,7 @@ const openShift = async (req, res, next) => {
         400,
         "CONFIRM_REQUIRED",
         `الدرج "${drawer.name}" فيه ${expected} — أكّد الرقم أو اكتب اللي لقيته.`,
-        { drawer, expected, last_count: lastCount }
+        { drawer, expected, last_count: lastCount },
       );
     }
 
@@ -266,8 +269,11 @@ const closeShift = async (req, res, next) => {
     const tenantId = requireTenantId(req);
     // ⚠ كان بيقرا من req.body الخام مش من المتحقَّق منه —
     //   "5abc" كانت بتعدّي كـ 5 من parseInt
-    const { shift_id: targetShiftId, counted, expected_seen } =
-      req.validated?.body || {};
+    const {
+      shift_id: targetShiftId,
+      counted,
+      expected_seen,
+    } = req.validated?.body || {};
     const isManager = MANAGER_ROLES.includes(req.user.role);
 
     if (targetShiftId && !isManager) {
@@ -344,7 +350,7 @@ const closeShift = async (req, res, next) => {
           400,
           "COUNT_REQUIRED",
           `اكتب اللي في الدرج "${drawer.name}" قبل القفل.`,
-          { drawer, expected, shift_id: shift.id }
+          { drawer, expected, shift_id: shift.id },
         );
       }
 
@@ -358,7 +364,7 @@ const closeShift = async (req, res, next) => {
         tx,
         shift,
         req.user.id,
-        drawerCtx
+        drawerCtx,
       );
 
       // ← الموظف لو النت رجعله أو فتح البرنامج، يلاقي شاشة الدخول
@@ -415,7 +421,7 @@ const ackDrawer = async (req, res, next) => {
         400,
         "CONFIRM_REQUIRED",
         `${lastCount?.user?.name || "حد تاني"} قفل على الدرج — الدرج فيه ${expected}. متأكد؟`,
-        { drawer, expected, last_count: lastCount }
+        { drawer, expected, last_count: lastCount },
       );
     }
 
@@ -573,7 +579,8 @@ const getSummary = async (req, res, next) => {
         .map((x) => parseInt(x, 10))
         .filter((n) => Number.isInteger(n) && n > 0)
         .slice(0, 1000);
-      if (requested.length === 0) return res.json({ success: true, data: empty });
+      if (requested.length === 0)
+        return res.json({ success: true, data: empty });
       where.id = { in: requested };
     }
 
@@ -583,7 +590,10 @@ const getSummary = async (req, res, next) => {
     } else {
       const allowed = getAllowedBranchIds(req.user);
       if (allowed) {
-        if (typeof where.branch_id === "number" && !allowed.includes(where.branch_id)) {
+        if (
+          typeof where.branch_id === "number" &&
+          !allowed.includes(where.branch_id)
+        ) {
           return res.json({ success: true, data: empty });
         }
         if (where.branch_id === undefined) where.branch_id = { in: allowed };
@@ -624,7 +634,7 @@ const getSummary = async (req, res, next) => {
     // ← جديد: إجمالي العجز/الزيادة وعدد الورديات اللي طلعت بفرق
     const withVariance = visible.filter((s) => s.variance !== null);
     const totalVariance = round2(
-      withVariance.reduce((acc, s) => acc + Number(s.variance), 0)
+      withVariance.reduce((acc, s) => acc + Number(s.variance), 0),
     );
 
     res.json({
@@ -716,7 +726,9 @@ const getReport = async (req, res, next) => {
         branch: { select: { id: true, name: true } },
         drawer: { select: { id: true, name: true } },
         closer: { select: { id: true, name: true, role: true } },
-        payments: { include: { student: { select: { id: true, name: true } } } },
+        payments: {
+          include: { student: { select: { id: true, name: true } } },
+        },
         expenses: true,
         cash_transactions: true,
         attendance: {

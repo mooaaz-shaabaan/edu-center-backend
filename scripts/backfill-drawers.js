@@ -55,8 +55,8 @@ const MODELS = [
     if (drawers.length !== 1) {
       const pending = await Promise.all(
         MODELS.map(([m]) =>
-          prisma[m].count({ where: { branch_id: b.id, drawer_id: null } })
-        )
+          prisma[m].count({ where: { branch_id: b.id, drawer_id: null } }),
+        ),
       );
       const total = pending.reduce((a, n) => a + n, 0);
       if (total > 0) {
@@ -87,7 +87,7 @@ const MODELS = [
 
   // ── النتيجة ─────────────────────────────────────────────
   const left = await Promise.all(
-    MODELS.map(([m]) => prisma[m].count({ where: { drawer_id: null } }))
+    MODELS.map(([m]) => prisma[m].count({ where: { drawer_id: null } })),
   );
 
   console.log("\nلسه من غير درج:", {
@@ -99,7 +99,7 @@ const MODELS = [
   if (skipped.length) {
     console.log(
       "\n⚠ الفروع دي فيها أكتر من درج شغّال، فالحركات القديمة بتاعتها" +
-        " سيبتها من غير درج عن قصد — حدّدها بإيدك أو اعمل جرد للدروج:"
+        " سيبتها من غير درج عن قصد — حدّدها بإيدك أو اعمل جرد للدروج:",
     );
     console.table(skipped);
   }

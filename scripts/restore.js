@@ -24,10 +24,7 @@ const os = require("os");
 const readline = require("readline");
 const { spawn } = require("child_process");
 
-const {
-  listBackups,
-  BACKUP_DIR,
-} = require("./backup");
+const { listBackups, BACKUP_DIR } = require("./backup");
 
 // ── أدوات ─────────────────────────────────────────────────
 const log = (...a) => console.log("[restore]", ...a);
@@ -98,17 +95,31 @@ const db = parseDbUrl();
 const env = db.password ? { PGPASSWORD: db.password } : {};
 
 const conn = (dbName) => [
-  "-h", db.host,
-  "-p", String(db.port),
-  "-U", db.user,
-  "-d", dbName,
+  "-h",
+  db.host,
+  "-p",
+  String(db.port),
+  "-U",
+  db.user,
+  "-d",
+  dbName,
 ];
 
 /** psql بصيغة نظيفة للقراية بالكود */
 const sql = (dbName, query) =>
   run(
     tool(bin, "psql"),
-    [...conn(dbName), "-t", "-A", "-F", "|", "-v", "ON_ERROR_STOP=1", "-c", query],
+    [
+      ...conn(dbName),
+      "-t",
+      "-A",
+      "-F",
+      "|",
+      "-v",
+      "ON_ERROR_STOP=1",
+      "-c",
+      query,
+    ],
     env,
   );
 
@@ -156,7 +167,9 @@ function printCounts(rows) {
   const withData = rows.filter((r) => r.rows > 0);
   const total = rows.reduce((s, r) => s + r.rows, 0);
 
-  log(`الجداول: ${rows.length} — فيها بيانات: ${withData.length} — إجمالي الصفوف: ${total}`);
+  log(
+    `الجداول: ${rows.length} — فيها بيانات: ${withData.length} — إجمالي الصفوف: ${total}`,
+  );
   for (const r of withData.slice(0, 15)) {
     console.log(`        ${String(r.rows).padStart(7)}  ${r.name}`);
   }
@@ -281,7 +294,9 @@ async function modeInto(target, file, fileName) {
     log(`اتعملت القاعدة ${target}`);
   } catch (e) {
     if (/already exists/i.test(e.message)) {
-      const ok = await ask(`القاعدة "${target}" موجودة. تمسح اللي فيها؟ (اكتب نعم): `);
+      const ok = await ask(
+        `القاعدة "${target}" موجودة. تمسح اللي فيها؟ (اكتب نعم): `,
+      );
       if (ok !== "نعم") return log("اتلغى.");
     } else throw e;
   }
@@ -351,7 +366,9 @@ async function modeOverwrite(file, fileName, kick) {
   printCounts(await tableCounts(target));
 
   log("✓ خلص. شغّل السيرفر وافتح البرنامج وتأكد من البيانات.");
-  log(`لو حاجة غلط: node scripts/restore.js --overwrite --file ${path.basename(safety)}`);
+  log(
+    `لو حاجة غلط: node scripts/restore.js --overwrite --file ${path.basename(safety)}`,
+  );
 }
 
 // ── المدخلات ──────────────────────────────────────────────
@@ -380,9 +397,7 @@ async function main() {
     throw new Error(`مفيش ولا نسخة في ${BACKUP_DIR}`);
   }
 
-  const chosen = args.file
-    ? args.file
-    : files[0].name;
+  const chosen = args.file ? args.file : files[0].name;
   const full = path.join(BACKUP_DIR, chosen);
 
   if (!fs.existsSync(full)) {

@@ -140,7 +140,7 @@ async function drawersOf(tenantId, branchIds) {
       branch_id: d.branch_id,
       branch_name: d.branch?.name ?? null,
       expected: await expectedBalance(prisma, d),
-    }))
+    })),
   );
 
   return { total: items.reduce((s, d) => s + d.expected, 0), items };
@@ -289,39 +289,41 @@ async function todayClasses(tenantId, branchIds, today, tomorrow) {
   const now = new Date();
   const nowMinutes = now.getHours() * 60 + now.getMinutes();
 
-  return schedules
-    .map((s) => {
-      const startMinutes = parseTime(s.start_time) ?? 0;
-      const sessionNo = sessionNoOf.get(s.id) ?? 1;
-      const att = attBy[`${s.course_id}#${sessionNo}`] ?? {
-        present: 0,
-        late: 0,
-        absent: 0,
-      };
+  return (
+    schedules
+      .map((s) => {
+        const startMinutes = parseTime(s.start_time) ?? 0;
+        const sessionNo = sessionNoOf.get(s.id) ?? 1;
+        const att = attBy[`${s.course_id}#${sessionNo}`] ?? {
+          present: 0,
+          late: 0,
+          absent: 0,
+        };
 
-      let status = "upcoming";
-      if (nowMinutes >= startMinutes + SESSION_MINUTES) status = "ended";
-      else if (nowMinutes >= startMinutes) status = "ongoing";
+        let status = "upcoming";
+        if (nowMinutes >= startMinutes + SESSION_MINUTES) status = "ended";
+        else if (nowMinutes >= startMinutes) status = "ongoing";
 
-      return {
-        schedule_id: s.id,
-        course_id: s.course_id,
-        course_name: s.course.name,
-        session_no: sessionNo,
-        branch_id: s.branch_id,
-        branch_name: s.branch?.name ?? null,
-        start_time: s.start_time,
-        status,
-        enrolled: enrolledBy[s.course_id] ?? 0,
-        attended: att.present + att.late,
-        present: att.present,
-        late: att.late,
-      };
-    })
-    // ← start_time ممكن يكون null، و null.localeCompare بيرمي TypeError
-    .sort((a, b) =>
-      String(a.start_time ?? "").localeCompare(String(b.start_time ?? "")),
-    );
+        return {
+          schedule_id: s.id,
+          course_id: s.course_id,
+          course_name: s.course.name,
+          session_no: sessionNo,
+          branch_id: s.branch_id,
+          branch_name: s.branch?.name ?? null,
+          start_time: s.start_time,
+          status,
+          enrolled: enrolledBy[s.course_id] ?? 0,
+          attended: att.present + att.late,
+          present: att.present,
+          late: att.late,
+        };
+      })
+      // ← start_time ممكن يكون null، و null.localeCompare بيرمي TypeError
+      .sort((a, b) =>
+        String(a.start_time ?? "").localeCompare(String(b.start_time ?? "")),
+      )
+  );
 }
 
 /// الغياب مشتق، مش مخزّن.

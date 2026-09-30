@@ -1,7 +1,10 @@
 // src/modules/semesters/semesters.controller.js
 const prisma = require("../../config/db");
-const { tenantWhere, requireTenantId, assertSameTenant } =
-  require("../../core/tenant");
+const {
+  tenantWhere,
+  requireTenantId,
+  assertSameTenant,
+} = require("../../core/tenant");
 
 // Helper: الفرع لازم تابع لنفس السنتر
 const assertBranchInTenant = async (branchId, tenantId) => {
@@ -87,8 +90,8 @@ const create = async (req, res, next) => {
             is_active: isActive,
           },
           include: { branch: { select: { id: true, name: true } } },
-        })
-      )
+        }),
+      ),
     );
 
     res.status(201).json({
@@ -195,7 +198,7 @@ const assertSemesterUsable = async (semesterId, tenantId) => {
   }
   if (!semester.is_active) {
     const err = new Error(
-      `السنة الدراسية ${semester.year} موقوفة — برجاء اختيار مرحلة للعام الدراسي الجديد.`
+      `السنة الدراسية ${semester.year} موقوفة — برجاء اختيار مرحلة للعام الدراسي الجديد.`,
     );
     err.status = 400;
     throw err;
@@ -206,7 +209,8 @@ const assertSemesterUsable = async (semesterId, tenantId) => {
 // POST /api/enrollments — تسجيل طالب في مادة أو أكتر
 const enroll = async (req, res, next) => {
   try {
-    const { student_id, course_ids, semester_id, start_date } = req.validated.body;
+    const { student_id, course_ids, semester_id, start_date } =
+      req.validated.body;
     const tenantId = requireTenantId(req);
 
     // 1) تأكد إن الطالب تابع لنفس السنتر
@@ -215,7 +219,9 @@ const enroll = async (req, res, next) => {
       select: { id: true, tenant_id: true },
     });
     if (!student || student.tenant_id !== tenantId) {
-      return res.status(404).json({ success: false, message: "Student not found." });
+      return res
+        .status(404)
+        .json({ success: false, message: "Student not found." });
     }
 
     // 2) تأكد إن كل الكورسات تابعة لنفس السنتر
@@ -252,8 +258,8 @@ const enroll = async (req, res, next) => {
             course: { select: { id: true, name: true } },
             semester: { select: { id: true, name: true, year: true } },
           },
-        })
-      )
+        }),
+      ),
     );
 
     res.status(201).json({
@@ -279,7 +285,9 @@ const moveSemester = async (req, res, next) => {
       select: { id: true, tenant_id: true },
     });
     if (!student || student.tenant_id !== tenantId) {
-      return res.status(404).json({ success: false, message: "Student not found." });
+      return res
+        .status(404)
+        .json({ success: false, message: "Student not found." });
     }
 
     await assertSemesterUsable(semester_id, tenantId);
@@ -342,6 +350,13 @@ const removeEnrollment = async (req, res, next) => {
 };
 
 module.exports = {
-  getAll, create, update, remove, bulkSetActive,
-  enroll, getEnrollments, removeEnrollment, moveSemester,
+  getAll,
+  create,
+  update,
+  remove,
+  bulkSetActive,
+  enroll,
+  getEnrollments,
+  removeEnrollment,
+  moveSemester,
 };

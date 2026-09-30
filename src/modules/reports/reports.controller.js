@@ -83,12 +83,12 @@ const collectFinancials = async (req, from, to, branchId) => {
   ]);
 
   const totals = {
-    payments: 0,         // دفعات عادية
-    wallet_charges: 0,   // شحن محفظة
-    attendance_cash: 0,  // كاش وقت الحضور
-    cash_deposits: 0,    // إيداع درج
+    payments: 0, // دفعات عادية
+    wallet_charges: 0, // شحن محفظة
+    attendance_cash: 0, // كاش وقت الحضور
+    cash_deposits: 0, // إيداع درج
     cash_withdrawals: 0, // سحب درج
-    expenses: 0,         // مصروفات
+    expenses: 0, // مصروفات
   };
 
   // كل العمليات في قايمة واحدة (in = داخل الدرج، out = خارج)
@@ -98,9 +98,11 @@ const collectFinancials = async (req, from, to, branchId) => {
     const kind = paymentKind(p.receipt_number);
     const amount = Number(p.amount);
     const key =
-      kind === "wallet_charge" ? "wallet_charges"
-      : kind === "attendance_cash" ? "attendance_cash"
-      : "payments";
+      kind === "wallet_charge"
+        ? "wallet_charges"
+        : kind === "attendance_cash"
+          ? "attendance_cash"
+          : "payments";
     totals[key] += amount;
     transactions.push({
       id: `payment-${p.id}`,
@@ -149,17 +151,24 @@ const collectFinancials = async (req, from, to, branchId) => {
   transactions.sort((a, b) => new Date(a.at) - new Date(b.at));
 
   const totalIncome =
-    totals.payments + totals.wallet_charges + totals.attendance_cash + totals.cash_deposits;
+    totals.payments +
+    totals.wallet_charges +
+    totals.attendance_cash +
+    totals.cash_deposits;
   const totalExpenses = totals.expenses + totals.cash_withdrawals;
 
   // الحضور — الخصم من المحفظة للعرض بس (مش بيدخل الدخل: اتحسب وقت الشحن)
-  const countOf = (s) => attendance.find((r) => r.status === s)?._count.status || 0;
+  const countOf = (s) =>
+    attendance.find((r) => r.status === s)?._count.status || 0;
   const attendanceSummary = {
     present: countOf("present"),
     late: countOf("late"),
     absent: countOf("absent"),
     total: attendance.reduce((sum, r) => sum + r._count.status, 0),
-    wallet_debited: attendance.reduce((sum, r) => sum + Number(r._sum.wallet_debited || 0), 0),
+    wallet_debited: attendance.reduce(
+      (sum, r) => sum + Number(r._sum.wallet_debited || 0),
+      0,
+    ),
   };
 
   return {
@@ -192,10 +201,17 @@ const getRevenue = async (req, res, next) => {
     const to = isDaily ? new Date(y, m, 1) : new Date(y + 1, 0, 1);
 
     const branchId = branch_id ? parseInt(branch_id) : null;
-    const { totals, transactions } = await collectFinancials(req, from, to, branchId);
+    const { totals, transactions } = await collectFinancials(
+      req,
+      from,
+      to,
+      branchId,
+    );
 
     const keyOf = (d) =>
-      isDaily ? dayKey(d) : `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      isDaily
+        ? dayKey(d)
+        : `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 
     // جهّز كل الأيام/الشهور بأصفار
     const buckets = new Map();
@@ -206,7 +222,10 @@ const getRevenue = async (req, res, next) => {
       }
     } else {
       for (let i = 0; i < 12; i++) {
-        buckets.set(`${y}-${String(i + 1).padStart(2, "0")}`, { income: 0, expenses: 0 });
+        buckets.set(`${y}-${String(i + 1).padStart(2, "0")}`, {
+          income: 0,
+          expenses: 0,
+        });
       }
     }
 
@@ -263,17 +282,29 @@ const getProfit = async (req, res, next) => {
         _sum: { amount: true },
       }),
       prisma.cashTransaction.aggregate({
-        where: { ...tw, ...branchFilter, type: "deposit", created_at: { gte: from, lt: to } },
+        where: {
+          ...tw,
+          ...branchFilter,
+          type: "deposit",
+          created_at: { gte: from, lt: to },
+        },
         _sum: { amount: true },
       }),
       prisma.cashTransaction.aggregate({
-        where: { ...tw, ...branchFilter, type: "withdrawal", created_at: { gte: from, lt: to } },
+        where: {
+          ...tw,
+          ...branchFilter,
+          type: "withdrawal",
+          created_at: { gte: from, lt: to },
+        },
         _sum: { amount: true },
       }),
     ]);
 
-    const totalIncome = Number(payments._sum.amount || 0) + Number(cashIn._sum.amount || 0);
-    const totalExpenses = Number(expenses._sum.amount || 0) + Number(cashOut._sum.amount || 0);
+    const totalIncome =
+      Number(payments._sum.amount || 0) + Number(cashIn._sum.amount || 0);
+    const totalExpenses =
+      Number(expenses._sum.amount || 0) + Number(cashOut._sum.amount || 0);
 
     res.json({
       success: true,
@@ -307,22 +338,33 @@ const getSummary = async (req, res, next) => {
       if (month) {
         [y, m] = String(month).split("-").map(Number);
         if (!y || !m) {
-          return res.status(400).json({ success: false, message: "month must be YYYY-MM." });
+          return res
+            .status(400)
+            .json({ success: false, message: "month must be YYYY-MM." });
         }
       }
       from = new Date(y, m - 1, 1);
       to = new Date(y, m, 1);
     } else {
-      from = date ? parseDay(date) : new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      from = date
+        ? parseDay(date)
+        : new Date(now.getFullYear(), now.getMonth(), now.getDate());
       if (!from) {
-        return res.status(400).json({ success: false, message: "date must be YYYY-MM-DD." });
+        return res
+          .status(400)
+          .json({ success: false, message: "date must be YYYY-MM-DD." });
       }
       to = new Date(from);
       to.setDate(to.getDate() + 1);
     }
 
     const branchId = branch_id ? parseInt(branch_id) : null;
-    const { totals, attendance, transactions } = await collectFinancials(req, from, to, branchId);
+    const { totals, attendance, transactions } = await collectFinancials(
+      req,
+      from,
+      to,
+      branchId,
+    );
 
     const data = { period, from, to, totals, attendance };
 
@@ -331,12 +373,15 @@ const getSummary = async (req, res, next) => {
       const days = {};
       for (const t of transactions) {
         const key = dayKey(new Date(t.at));
-        if (!days[key]) days[key] = { date: key, income: 0, expenses: 0, net: 0 };
+        if (!days[key])
+          days[key] = { date: key, income: 0, expenses: 0, net: 0 };
         if (t.direction === "in") days[key].income += t.amount;
         else days[key].expenses += t.amount;
         days[key].net = days[key].income - days[key].expenses;
       }
-      data.days = Object.values(days).sort((a, b) => a.date.localeCompare(b.date));
+      data.days = Object.values(days).sort((a, b) =>
+        a.date.localeCompare(b.date),
+      );
     } else {
       // اليومي: كل عملية لوحدها
       data.transactions = transactions;
@@ -370,7 +415,8 @@ const getAttendance = async (req, res, next) => {
     });
 
     const total = records.reduce((sum, r) => sum + r._count.status, 0);
-    const present = records.find((r) => r.status === "present")?._count.status || 0;
+    const present =
+      records.find((r) => r.status === "present")?._count.status || 0;
     const percentage = total > 0 ? ((present / total) * 100).toFixed(1) : 0;
 
     res.json({
@@ -537,7 +583,12 @@ const getMonthRevenue = async (req, res, next) => {
     const startOfNextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
 
     const branchId = branch_id ? parseInt(branch_id) : null;
-    const { totals } = await collectFinancials(req, startOfMonth, startOfNextMonth, branchId);
+    const { totals } = await collectFinancials(
+      req,
+      startOfMonth,
+      startOfNextMonth,
+      branchId,
+    );
 
     res.json({
       success: true,
@@ -557,7 +608,9 @@ const getStudentReport = async (req, res, next) => {
     const { student_id } = req.query;
 
     if (!student_id) {
-      return res.status(400).json({ success: false, message: "student_id is required." });
+      return res
+        .status(400)
+        .json({ success: false, message: "student_id is required." });
     }
     const sid = parseInt(student_id);
 
@@ -584,8 +637,12 @@ const getStudentReport = async (req, res, next) => {
       }),
     ]);
 
-    const totalAttendance = attendance.reduce((sum, r) => sum + r._count.status, 0);
-    const present = attendance.find((r) => r.status === "present")?._count.status || 0;
+    const totalAttendance = attendance.reduce(
+      (sum, r) => sum + r._count.status,
+      0,
+    );
+    const present =
+      attendance.find((r) => r.status === "present")?._count.status || 0;
 
     res.json({
       success: true,
@@ -598,8 +655,12 @@ const getStudentReport = async (req, res, next) => {
         attendance: {
           total: totalAttendance,
           present,
-          absent: attendance.find((r) => r.status === "absent")?._count.status || 0,
-          percentage: totalAttendance > 0 ? `${((present / totalAttendance) * 100).toFixed(1)}%` : "0%",
+          absent:
+            attendance.find((r) => r.status === "absent")?._count.status || 0,
+          percentage:
+            totalAttendance > 0
+              ? `${((present / totalAttendance) * 100).toFixed(1)}%`
+              : "0%",
         },
         total_paid: payments._sum.amount || 0,
         grades,
@@ -611,6 +672,13 @@ const getStudentReport = async (req, res, next) => {
 };
 
 module.exports = {
-  getRevenue, getProfit, getSummary, getAttendance, getTopCourses,
-  getRenewals, getStudentReport, getTodayRevenue, getMonthRevenue,
+  getRevenue,
+  getProfit,
+  getSummary,
+  getAttendance,
+  getTopCourses,
+  getRenewals,
+  getStudentReport,
+  getTodayRevenue,
+  getMonthRevenue,
 };

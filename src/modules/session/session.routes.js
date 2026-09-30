@@ -6,8 +6,11 @@ const { z } = require("zod");
 
 const auth = require("../../middlewares/auth");
 const validate = require("../../middlewares/validate");
-const { heartbeat, endMySession, forceLogout } =
-  require("./session.controller");
+const {
+  heartbeat,
+  endMySession,
+  forceLogout,
+} = require("./session.controller");
 
 const idField = z.coerce.number().int().positive();
 

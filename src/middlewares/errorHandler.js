@@ -23,7 +23,9 @@ module.exports = (err, req, res, next) => {
     });
   } else if (!isProd) {
     // رفض متوقع — في التطوير بس، سطر واحد بسيط (مش أحمر مخيف)
-    console.log(`↩️  ${status} ${req.method} ${req.originalUrl} — ${err.message}`);
+    console.log(
+      `↩️  ${status} ${req.method} ${req.originalUrl} — ${err.message}`,
+    );
   }
 
   // ── Prisma errors ──────────────────────────────────────
@@ -37,7 +39,9 @@ module.exports = (err, req, res, next) => {
   }
 
   if (err.code === "P2025") {
-    return res.status(404).json({ success: false, message: "Record not found." });
+    return res
+      .status(404)
+      .json({ success: false, message: "Record not found." });
   }
 
   // أخطاء Prisma تانية (foreign key، إلخ) — رسالة عامة
@@ -73,7 +77,9 @@ module.exports = (err, req, res, next) => {
 
   // ── Body parser / JSON errors ──────────────────────────
   if (err.type === "entity.parse.failed") {
-    return res.status(400).json({ success: false, message: "Invalid JSON payload." });
+    return res
+      .status(400)
+      .json({ success: false, message: "Invalid JSON payload." });
   }
 
   // ── Default ────────────────────────────────────────────

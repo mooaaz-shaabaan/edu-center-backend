@@ -89,7 +89,10 @@ const regenLimiter = rateLimit({
 
 // ── Schemas ───────────────────────────────────────────────
 const phone = z.string().trim().min(8).max(20);
-const courseIds = z.array(z.coerce.number().int().positive()).max(30).optional();
+const courseIds = z
+  .array(z.coerce.number().int().positive())
+  .max(30)
+  .optional();
 const idField = z.coerce.number().int().positive();
 
 const tokenParam = z.object({

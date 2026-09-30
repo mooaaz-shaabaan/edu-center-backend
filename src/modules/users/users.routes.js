@@ -7,8 +7,12 @@ const auth = require("../../middlewares/auth");
 const { requireRole, STAFF, MANAGERS } = require("../../middlewares/rbac");
 const validate = require("../../middlewares/validate");
 const withNotify = require("../../core/withNotify");
-const { tenantWhere, requireTenantId, assertSameTenant, resolveTenantId } =
-  require("../../core/tenant");
+const {
+  tenantWhere,
+  requireTenantId,
+  assertSameTenant,
+  resolveTenantId,
+} = require("../../core/tenant");
 
 const usersController = require("./users.controller");
 
@@ -37,7 +41,7 @@ const createUserSchema = z.object({
     password: strongPassword,
     role: z.enum(["owner", "admin", "receptionist"]),
     branch_id: idField.optional(),
-    branches: z.array(branchGrantSchema).optional(),   // ← بدل z.array(idField)
+    branches: z.array(branchGrantSchema).optional(), // ← بدل z.array(idField)
   }),
 });
 
@@ -45,7 +49,13 @@ const updateUserSchema = z.object({
   params: z.object({ id: idField }),
   body: z.object({
     name: z.string().trim().min(1).max(150).optional(),
-    email: z.string().trim().toLowerCase().email("Invalid email.").max(255).optional(),
+    email: z
+      .string()
+      .trim()
+      .toLowerCase()
+      .email("Invalid email.")
+      .max(255)
+      .optional(),
     is_active: z.boolean().optional(),
     role: z.enum(["owner", "admin", "receptionist"]).optional(),
     branch_id: idField.nullable().optional(),
@@ -83,7 +93,7 @@ router.use(auth);
 router.get(
   "/",
   requireRole("owner", "admin", "super_admin"),
-  usersController.getUsers
+  usersController.getUsers,
 );
 
 // ── POST /api/users ───────────────────────────────────────
@@ -92,7 +102,7 @@ router.post(
   "/",
   requireRole("owner", "admin", "super_admin"),
   validate(createUserSchema),
-  withNotify(usersController.createUser, "users_updated")
+  withNotify(usersController.createUser, "users_updated"),
 );
 
 // ── PUT /api/users/:id ────────────────────────────────────
@@ -101,7 +111,7 @@ router.put(
   "/:id",
   requireRole("owner", "admin", "super_admin"),
   validate(updateUserSchema),
-  withNotify(usersController.updateUser, "users_updated")
+  withNotify(usersController.updateUser, "users_updated"),
 );
 
 // ── PUT /api/users/:id/password ───────────────────────────
@@ -110,7 +120,7 @@ router.put(
   "/:id/password",
   requireRole("owner", "admin", "super_admin"),
   validate(passwordSchema),
-  withNotify(usersController.resetUserPassword, "users_updated")
+  withNotify(usersController.resetUserPassword, "users_updated"),
 );
 
 // ── GET /api/users/:id/branch-access ──────────────────────
@@ -118,8 +128,8 @@ router.put(
 router.get(
   "/:id/branch-access",
   requireRole("owner", "admin", "super_admin"),
-  validate(userIdParamSchema),           // ← ضيف السطر ده
-  usersController.getUserBranchAccess
+  validate(userIdParamSchema), // ← ضيف السطر ده
+  usersController.getUserBranchAccess,
 );
 
 // ── PUT /api/users/:id/branch-access/:branchId ───────────
@@ -128,7 +138,7 @@ router.put(
   "/:id/branch-access/:branchId",
   requireRole("owner", "admin", "super_admin"),
   validate(branchAccessSchema),
-  withNotify(usersController.updateUserBranchAccess, "users_updated")
+  withNotify(usersController.updateUserBranchAccess, "users_updated"),
 );
 
 // ── DELETE /api/users/:id/branch-access/:branchId ────────
@@ -137,7 +147,7 @@ router.delete(
   "/:id/branch-access/:branchId",
   requireRole("owner", "admin", "super_admin"),
   validate(branchAccessSchema),
-  withNotify(usersController.removeUserBranchAccess, "users_updated")
+  withNotify(usersController.removeUserBranchAccess, "users_updated"),
 );
 
 // ── POST /api/users/:id/archive ───────────────────────────
@@ -146,7 +156,7 @@ router.post(
   "/:id/archive",
   requireRole("owner", "admin", "super_admin"),
   validate(userIdParamSchema),
-  withNotify(usersController.archiveUser, "users_updated")
+  withNotify(usersController.archiveUser, "users_updated"),
 );
 
 // ── POST /api/users/:id/restore ───────────────────────────
@@ -155,7 +165,7 @@ router.post(
   "/:id/restore",
   requireRole("owner", "admin", "super_admin"),
   validate(userIdParamSchema),
-  withNotify(usersController.restoreUser, "users_updated")
+  withNotify(usersController.restoreUser, "users_updated"),
 );
 
 module.exports = router;

@@ -1,6 +1,11 @@
 // src/modules/payments/payments.controller.js
 const prisma = require("../../config/db");
-const { tenantWhere, requireTenantId, assertSameTenant, assertShiftInTenant } = require("../../core/tenant");
+const {
+  tenantWhere,
+  requireTenantId,
+  assertSameTenant,
+  assertShiftInTenant,
+} = require("../../core/tenant");
 const { getAllowedBranchIds } = require("../../core/branchScope");
 const { resolveShiftId } = require("../../core/currentShift");
 const { resolveDrawerId, sendDrawerError } = require("../../core/drawerScope");
@@ -131,7 +136,11 @@ const create = async (req, res, next) => {
     const { student_id, shift_id, amount, notes } = req.validated.body;
     const tenantId = requireTenantId(req);
     await assertShiftInTenant(prisma, shift_id, tenantId);
-    const { shiftId, drawerId } = await resolveMoneyTarget(req, tenantId, shift_id);
+    const { shiftId, drawerId } = await resolveMoneyTarget(
+      req,
+      tenantId,
+      shift_id,
+    );
 
     // الطالب لازم تابع لنفس السنتر
     const student = await prisma.student.findFirst({
@@ -139,7 +148,9 @@ const create = async (req, res, next) => {
       select: { id: true },
     });
     if (!student) {
-      return res.status(404).json({ success: false, message: "Student not found." });
+      return res
+        .status(404)
+        .json({ success: false, message: "Student not found." });
     }
 
     const payment = await prisma.payment.create({
@@ -247,7 +258,11 @@ const cashTransaction = async (req, res, next) => {
     const { shift_id, type, amount, reason } = req.validated.body;
     const tenantId = requireTenantId(req);
     await assertShiftInTenant(prisma, shift_id, tenantId);
-    const { shiftId, drawerId } = await resolveMoneyTarget(req, tenantId, shift_id);
+    const { shiftId, drawerId } = await resolveMoneyTarget(
+      req,
+      tenantId,
+      shift_id,
+    );
 
     const transaction = await prisma.cashTransaction.create({
       data: {
@@ -308,7 +323,11 @@ const createExpense = async (req, res, next) => {
     const { shift_id, category, description, amount } = req.validated.body;
     const tenantId = requireTenantId(req);
     await assertShiftInTenant(prisma, shift_id, tenantId);
-    const { shiftId, drawerId } = await resolveMoneyTarget(req, tenantId, shift_id);
+    const { shiftId, drawerId } = await resolveMoneyTarget(
+      req,
+      tenantId,
+      shift_id,
+    );
 
     const expense = await prisma.expense.create({
       data: {
@@ -365,9 +384,11 @@ const updateExpense = async (req, res, next) => {
      *   المصروف الغلط على وردية مقفولة بيتصحّح بمصروف/إيداع مضاد
      *   على الوردية الحالية، مش بتعديل التاريخ.
      */
-    if (amount !== undefined &&
-        existing.shift?.closed_at &&
-        Number(amount) !== Number(existing.amount)) {
+    if (
+      amount !== undefined &&
+      existing.shift?.closed_at &&
+      Number(amount) !== Number(existing.amount)
+    ) {
       return res.status(400).json({
         success: false,
         code: "SHIFT_CLOSED",
@@ -426,7 +447,13 @@ const deleteExpense = async (req, res, next) => {
 };
 
 module.exports = {
-  getAll, create, getReceipt,
-  getCash, cashTransaction,
-  getExpenses, createExpense, updateExpense, deleteExpense,
+  getAll,
+  create,
+  getReceipt,
+  getCash,
+  cashTransaction,
+  getExpenses,
+  createExpense,
+  updateExpense,
+  deleteExpense,
 };

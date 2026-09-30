@@ -109,7 +109,10 @@ const closeShiftWithTotals = async (tx, shift, closedBy, drawerCtx = null) => {
     });
 
     // اللي لسه شغال على نفس الدرج لازم يأكد الرصيد الجديد
-    await flagOthersForAck(tx, { drawerId: drawer.id, exceptShiftId: shift.id });
+    await flagOthersForAck(tx, {
+      drawerId: drawer.id,
+      exceptShiftId: shift.id,
+    });
   }
 
   const closed = await tx.shift.findUnique({

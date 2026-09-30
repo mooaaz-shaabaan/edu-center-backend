@@ -97,7 +97,8 @@ const buildStats = (grades, totalMarks, passMarks) => {
     absent,
     excused,
     average: Math.round(average * 100) / 100,
-    average_percentage: max > 0 ? Math.round((average / max) * 10000) / 100 : null,
+    average_percentage:
+      max > 0 ? Math.round((average / max) * 10000) / 100 : null,
     highest: Math.max(...scored),
     lowest: Math.min(...scored),
     passed,
@@ -230,7 +231,12 @@ const getExamSheet = async (req, res, next) => {
         },
         select: {
           student: {
-            select: { id: true, name: true, portal_code: true, branch_id: true },
+            select: {
+              id: true,
+              name: true,
+              portal_code: true,
+              branch_id: true,
+            },
           },
         },
       }),
@@ -331,7 +337,11 @@ const createExam = async (req, res, next) => {
     res.status(201).json({
       success: true,
       message: "Exam created.",
-      data: { ...exam, total_marks: num(exam.total_marks), pass_marks: num(exam.pass_marks) },
+      data: {
+        ...exam,
+        total_marks: num(exam.total_marks),
+        pass_marks: num(exam.pass_marks),
+      },
     });
   } catch (err) {
     next(err);
@@ -399,7 +409,11 @@ const updateExam = async (req, res, next) => {
     res.json({
       success: true,
       message: "Exam updated.",
-      data: { ...exam, total_marks: num(exam.total_marks), pass_marks: num(exam.pass_marks) },
+      data: {
+        ...exam,
+        total_marks: num(exam.total_marks),
+        pass_marks: num(exam.pass_marks),
+      },
     });
   } catch (err) {
     next(err);
@@ -517,7 +531,7 @@ const saveGrades = async (req, res, next) => {
     for (const g of grades) {
       const status = g.status || (g.grade == null ? "absent" : "graded");
       const isAbsent = status === "absent" || status === "excused";
-      const grade = isAbsent ? null : g.grade ?? null;
+      const grade = isAbsent ? null : (g.grade ?? null);
 
       if (grade != null && (grade < 0 || grade > totalMarks)) {
         return res.status(400).json({
@@ -648,7 +662,8 @@ const getStudentGrades = async (req, res, next) => {
     const avg =
       scored.length > 0
         ? Math.round(
-            (scored.reduce((a, r) => a + r.percentage, 0) / scored.length) * 100,
+            (scored.reduce((a, r) => a + r.percentage, 0) / scored.length) *
+              100,
           ) / 100
         : null;
 

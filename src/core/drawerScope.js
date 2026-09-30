@@ -46,7 +46,7 @@ const sendDrawerError = (res, err, next) => {
  */
 const resolveDrawerId = async (
   db,
-  { tenantId, branchId, drawerId = null, shiftId = null }
+  { tenantId, branchId, drawerId = null, shiftId = null },
 ) => {
   // ١) درج الوردية
   if (shiftId) {
@@ -72,7 +72,7 @@ const resolveDrawerId = async (
       throw codedError(
         400,
         "DRAWER_WRONG_BRANCH",
-        "الدرج ده مش في الفرع المختار أو موقوف."
+        "الدرج ده مش في الفرع المختار أو موقوف.",
       );
     }
     return drawer.id;
@@ -90,16 +90,13 @@ const resolveDrawerId = async (
     throw codedError(
       400,
       "NO_DRAWER",
-      "الفرع ده مالوش درج — لازم المدير يضيف درج الأول."
+      "الفرع ده مالوش درج — لازم المدير يضيف درج الأول.",
     );
   }
 
-  throw codedError(
-    400,
-    "DRAWER_REQUIRED",
-    "اختار الدرج اللي الفلوس هتدخله.",
-    { drawers: actives }
-  );
+  throw codedError(400, "DRAWER_REQUIRED", "اختار الدرج اللي الفلوس هتدخله.", {
+    drawers: actives,
+  });
 };
 
 module.exports = { resolveDrawerId, codedError, sendDrawerError };

@@ -54,7 +54,9 @@ const assertBranchUsable = async (req, branchId) => {
   }
 
   if (!branch.is_active) {
-    const err = new Error(`الفرع "${branch.name}" موقوف — برجاء اختيار فرع شغّال.`);
+    const err = new Error(
+      `الفرع "${branch.name}" موقوف — برجاء اختيار فرع شغّال.`,
+    );
     err.status = 400;
     throw err;
   }
@@ -310,11 +312,13 @@ const deleteBranch = async (req, res, next) => {
     }
 
     const counts = await Promise.all(
-      DELETE_BLOCKERS.map((b) => safeCount(b.model, { branch_id: id }))
+      DELETE_BLOCKERS.map((b) => safeCount(b.model, { branch_id: id })),
     );
 
-    const blocked = DELETE_BLOCKERS.map((b, i) => ({ ...b, count: counts[i] }))
-      .filter((b) => b.count > 0);
+    const blocked = DELETE_BLOCKERS.map((b, i) => ({
+      ...b,
+      count: counts[i],
+    })).filter((b) => b.count > 0);
 
     if (blocked.length > 0) {
       const details = blocked.map((b) => b.label(b.count)).join("، ");

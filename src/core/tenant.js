@@ -92,7 +92,7 @@ const requireTenantId = (req) => {
   const tid = resolveTenantId(req);
   if (tid === null) {
     const err = new Error(
-      "A tenant must be selected to create records. (super_admin: choose a center first)"
+      "A tenant must be selected to create records. (super_admin: choose a center first)",
     );
     err.status = 400;
     throw err;
@@ -142,4 +142,10 @@ async function assertShiftInTenant(prisma, shiftId, tenantId) {
   }
 }
 
-module.exports = { tenantWhere, requireTenantId, assertSameTenant, resolveTenantId, assertShiftInTenant };  
+module.exports = {
+  tenantWhere,
+  requireTenantId,
+  assertSameTenant,
+  resolveTenantId,
+  assertShiftInTenant,
+};

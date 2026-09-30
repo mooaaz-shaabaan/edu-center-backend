@@ -27,7 +27,7 @@ app.use(
   helmet({
     contentSecurityPolicy: isProd ? undefined : false,
     crossOriginResourcePolicy: { policy: "same-site" },
-  })
+  }),
 );
 
 // ── CORS ──────────────────────────────────────────────────
@@ -48,7 +48,7 @@ const allowedOrigins = [
 
 app.use(
   cors({
-      origin: (origin, callback) => {
+    origin: (origin, callback) => {
       if (!origin) return callback(null, true);
       if (allowedOrigins.includes(stripSlash(origin))) {
         return callback(null, true);
@@ -59,7 +59,7 @@ app.use(
     allowedHeaders: ["Content-Type", "Authorization"],
     credentials: true, // ضروري عشان الكوكيز
     maxAge: 86400,
-  })
+  }),
 );
 
 // ── Body Parsers ──────────────────────────────────────────
@@ -78,7 +78,7 @@ app.use(
       if (req.path === "/api/stream") return false;
       return compression.filter(req, res);
     },
-  })
+  }),
 );
 
 // ── Global Rate Limiter ───────────────────────────────────
@@ -96,7 +96,14 @@ const tokenKey = (req) => {
   const header = req.headers.authorization;
   if (header && header.startsWith("Bearer ")) {
     // بصمة بس — التوكن نفسه مايتخزنش في ذاكرة الـ limiter
-    return "t:" + crypto.createHash("sha256").update(header.slice(7)).digest("hex").slice(0, 24);
+    return (
+      "t:" +
+      crypto
+        .createHash("sha256")
+        .update(header.slice(7))
+        .digest("hex")
+        .slice(0, 24)
+    );
   }
   return ipKeyGenerator(req);
 };
@@ -193,7 +200,10 @@ app.use("/api/exams", require("./modules/exams/exams.routes"));
 app.use("/api/tenants", require("./modules/tenants/tenants.routes"));
 app.use("/api/courses", coursesRoutes);
 app.use("/api/dashboard", require("./modules/dashboard/dashboard.routes"));
-app.use("/api/registrations", require("./modules/registrations/registrations.routes"));
+app.use(
+  "/api/registrations",
+  require("./modules/registrations/registrations.routes"),
+);
 app.use("/api/drawers", require("./modules/drawers/drawers.routes"));
 
 // ── Static Files ──────────────────────────────────────────
@@ -204,7 +214,7 @@ app.use(
     setHeaders: (res) => {
       res.setHeader("X-Content-Type-Options", "nosniff");
     },
-  })
+  }),
 );
 
 // ── 404 ───────────────────────────────────────────────────

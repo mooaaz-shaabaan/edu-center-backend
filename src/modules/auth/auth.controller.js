@@ -27,7 +27,7 @@ const generateAccessToken = (user) => {
       expiresIn: process.env.JWT_EXPIRES_IN || "15m",
       issuer: process.env.JWT_ISSUER || "edu-center",
       audience: process.env.JWT_AUDIENCE || "edu-center-app",
-    }
+    },
   );
 };
 
@@ -45,7 +45,10 @@ const DUMMY_HASH = bcrypt.hashSync("__timing_dummy__", 12);
 
 // ── Helpers: تنسيق صلاحيات الفروع ─────────────────────────
 const parseFeatures = (str) =>
-  (str || "").split(",").map((f) => f.trim()).filter(Boolean);
+  (str || "")
+    .split(",")
+    .map((f) => f.trim())
+    .filter(Boolean);
 
 const formatBranchAccess = (rows = []) =>
   rows.map((ba) => ({
@@ -71,7 +74,9 @@ const login = async (req, res, next) => {
     const user = await prisma.user.findUnique({
       where: { email: email.toLowerCase().trim() },
       include: {
-        tenant: { select: { id: true, slug: true, is_active: true,  email_domain: true } },
+        tenant: {
+          select: { id: true, slug: true, is_active: true, email_domain: true },
+        },
         branch_access: BRANCH_ACCESS_SELECT,
       },
     });
@@ -171,7 +176,7 @@ const login = async (req, res, next) => {
           branch_id: user.branch_id,
           tenant_id: user.tenant_id,
           tenant_slug: user.tenant?.slug || null,
-          tenant_email_domain: user.tenant?.email_domain || null,   // ← جديد
+          tenant_email_domain: user.tenant?.email_domain || null, // ← جديد
           branch_access: formatBranchAccess(user.branch_access),
         },
       },
@@ -286,7 +291,7 @@ const me = async (req, res, next) => {
             id: true,
             name: true,
             slug: true,
-            email_domain: true,        // ← 1
+            email_domain: true, // ← 1
           },
         },
         branch_access: BRANCH_ACCESS_SELECT,
@@ -306,7 +311,7 @@ const me = async (req, res, next) => {
       data: {
         ...rest,
         tenant_slug: tenant?.slug || null,
-        tenant_email_domain: tenant?.email_domain || null,   // ← 2
+        tenant_email_domain: tenant?.email_domain || null, // ← 2
         tenant,
         branch_access: formatBranchAccess(branch_access),
       },

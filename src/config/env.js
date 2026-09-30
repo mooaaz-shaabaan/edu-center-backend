@@ -29,19 +29,22 @@ function validateEnv() {
   if (jwtSecret) {
     if (jwtSecret.length < 32) {
       errors.push(
-        `JWT_SECRET too short (${jwtSecret.length} chars). Use 64+ chars.`
+        `JWT_SECRET too short (${jwtSecret.length} chars). Use 64+ chars.`,
       );
     }
     if (FORBIDDEN_SECRETS.includes(jwtSecret.toLowerCase().trim())) {
       errors.push(
         "JWT_SECRET is a default/known value. Generate a new one:\n" +
-          '     node -e "console.log(require(\'crypto\').randomBytes(64).toString(\'hex\'))"'
+          "     node -e \"console.log(require('crypto').randomBytes(64).toString('hex'))\"",
       );
     }
   }
 
   // ── 3) صحة الـ DATABASE_URL ─────────────────────────────
-  if (process.env.DATABASE_URL && !process.env.DATABASE_URL.startsWith("postgresql://")) {
+  if (
+    process.env.DATABASE_URL &&
+    !process.env.DATABASE_URL.startsWith("postgresql://")
+  ) {
     errors.push("DATABASE_URL must be a valid PostgreSQL connection string.");
   }
 
@@ -66,7 +69,9 @@ function validateEnv() {
     process.exit(1);
   }
 
-  console.log(`✅ Environment validated (${isProd ? "production" : "development"} mode)`);
+  console.log(
+    `✅ Environment validated (${isProd ? "production" : "development"} mode)`,
+  );
 }
 
 module.exports = { validateEnv };

@@ -1,7 +1,10 @@
 // src/modules/drawers/drawers.controller.js
 const prisma = require("../../config/db");
-const { tenantWhere, requireTenantId, assertSameTenant } =
-  require("../../core/tenant");
+const {
+  tenantWhere,
+  requireTenantId,
+  assertSameTenant,
+} = require("../../core/tenant");
 const { getAllowedBranchIds } = require("../../core/branchScope");
 const {
   round2,
@@ -96,7 +99,7 @@ const getDrawers = async (req, res, next) => {
         ...d,
         expected: await expectedBalance(prisma, d),
         open_shifts: await openShiftsOf(d.id),
-      }))
+      })),
     );
 
     res.json({ success: true, data });
@@ -114,7 +117,11 @@ const getDrawerState = async (req, res, next) => {
     const tenantId = requireTenantId(req);
     const id = req.validated.params.id;
 
-    const drawer = await loadDrawer(prisma, { id, tenantId, allowInactive: true });
+    const drawer = await loadDrawer(prisma, {
+      id,
+      tenantId,
+      allowInactive: true,
+    });
     assertBranchAllowed(req, drawer.branch_id);
 
     const [expected, lastCount, openShifts] = await Promise.all([
@@ -146,7 +153,11 @@ const getDrawerCounts = async (req, res, next) => {
     const id = req.validated.params.id;
     const limit = req.validated.query?.limit || 50;
 
-    const drawer = await loadDrawer(prisma, { id, tenantId, allowInactive: true });
+    const drawer = await loadDrawer(prisma, {
+      id,
+      tenantId,
+      allowInactive: true,
+    });
     assertBranchAllowed(req, drawer.branch_id);
 
     const counts = await prisma.drawerCount.findMany({
@@ -177,7 +188,11 @@ const getDrawerLedger = async (req, res, next) => {
     const id = req.validated.params.id;
     const { limit, since } = req.validated.query || {};
 
-    const drawer = await loadDrawer(prisma, { id, tenantId, allowInactive: true });
+    const drawer = await loadDrawer(prisma, {
+      id,
+      tenantId,
+      allowInactive: true,
+    });
     assertBranchAllowed(req, drawer.branch_id);
 
     const [rows, expected] = await Promise.all([
@@ -256,12 +271,20 @@ const updateDrawer = async (req, res, next) => {
     const id = req.validated.params.id;
     const { name, is_active } = req.validated.body;
 
-    const drawer = await loadDrawer(prisma, { id, tenantId, allowInactive: true });
+    const drawer = await loadDrawer(prisma, {
+      id,
+      tenantId,
+      allowInactive: true,
+    });
     assertBranchAllowed(req, drawer.branch_id);
 
     if (name !== undefined) {
       const duplicate = await prisma.cashDrawer.findFirst({
-        where: { branch_id: drawer.branch_id, name: name.trim(), id: { not: id } },
+        where: {
+          branch_id: drawer.branch_id,
+          name: name.trim(),
+          id: { not: id },
+        },
         select: { id: true },
       });
       if (duplicate) {
@@ -319,7 +342,11 @@ const deleteDrawer = async (req, res, next) => {
     const tenantId = requireTenantId(req);
     const id = req.validated.params.id;
 
-    const drawer = await loadDrawer(prisma, { id, tenantId, allowInactive: true });
+    const drawer = await loadDrawer(prisma, {
+      id,
+      tenantId,
+      allowInactive: true,
+    });
     assertBranchAllowed(req, drawer.branch_id);
 
     const [shiftsCount, countsCount, activeLeft] = await Promise.all([
@@ -350,7 +377,8 @@ const deleteDrawer = async (req, res, next) => {
     if (err?.code === "P2003") {
       return res.status(400).json({
         success: false,
-        message: "مينفعش تحذف الدرج — لسه فيه بيانات مربوطة بيه. وقّفه بدل ما تحذفه.",
+        message:
+          "مينفعش تحذف الدرج — لسه فيه بيانات مربوطة بيه. وقّفه بدل ما تحذفه.",
       });
     }
     next(err);

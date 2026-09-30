@@ -32,7 +32,12 @@ const refreshLimiter = rateLimit({
 // ── Validation Schemas ────────────────────────────────────
 const loginSchema = z.object({
   body: z.object({
-    email: z.string().trim().toLowerCase().email("Invalid email format.").max(255),
+    email: z
+      .string()
+      .trim()
+      .toLowerCase()
+      .email("Invalid email format.")
+      .max(255),
     password: z.string().min(1, "Password is required.").max(128),
   }),
 });

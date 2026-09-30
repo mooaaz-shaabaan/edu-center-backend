@@ -10,7 +10,12 @@ const validate = require("../../middlewares/validate");
 const withNotify = require("../../core/withNotify");
 
 const {
-  getAll, listSessions, recordByQR, recordManual, syncOffline, getSummary,
+  getAll,
+  listSessions,
+  recordByQR,
+  recordManual,
+  syncOffline,
+  getSummary,
 } = require("./attendance.controller");
 
 const idField = z.coerce.number().int().positive();
@@ -105,7 +110,7 @@ const syncSchema = z.object({
           method: z.enum(["qr", "manual"]).optional(),
           status: z.enum(["present", "absent", "late"]).optional(),
           notes: z.string().max(500).optional(),
-        })
+        }),
       )
       .min(1)
       .max(500),
@@ -131,7 +136,7 @@ router.get(
   validate(listSchema),
   validateBranch({ required: false }),
   requireBranchAccess("attendance"),
-  getAll
+  getAll,
 );
 
 /// ⚠ لازم يبقى قبل أي راوت فيه باراميتر زي "/:id"
@@ -140,7 +145,7 @@ router.get(
   validate(sessionsSchema),
   validateBranch({ required: true }), // المواعيد بتختلف من فرع لفرع
   requireBranchAccess("attendance"),
-  listSessions
+  listSessions,
 );
 
 router.get(
@@ -148,7 +153,7 @@ router.get(
   validate(summarySchema),
   validateBranch({ required: false }),
   requireBranchAccess("attendance"),
-  getSummary
+  getSummary,
 );
 
 router.post(
@@ -156,7 +161,11 @@ router.post(
   validate(qrSchema),
   validateBranch({ required: true }),
   requireBranchAccess("attendance"),
-  withNotify(recordByQR, ["attendance_updated", "payments_updated", "drawers_updated"])
+  withNotify(recordByQR, [
+    "attendance_updated",
+    "payments_updated",
+    "drawers_updated",
+  ]),
 );
 
 router.post(
@@ -164,7 +173,11 @@ router.post(
   validate(manualSchema),
   validateBranch({ required: true }),
   requireBranchAccess("attendance"),
-  withNotify(recordManual, ["attendance_updated", "payments_updated", "drawers_updated"])
+  withNotify(recordManual, [
+    "attendance_updated",
+    "payments_updated",
+    "drawers_updated",
+  ]),
 );
 
 router.post(
@@ -172,7 +185,11 @@ router.post(
   validate(syncSchema),
   validateBranch({ required: true }),
   requireBranchAccess("attendance"),
-  withNotify(syncOffline, ["attendance_updated", "payments_updated", "drawers_updated"])
+  withNotify(syncOffline, [
+    "attendance_updated",
+    "payments_updated",
+    "drawers_updated",
+  ]),
 );
 
 module.exports = router;

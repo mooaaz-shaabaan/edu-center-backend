@@ -1,7 +1,10 @@
 // src/modules/schedules/schedules.controller.js
 const prisma = require("../../config/db");
-const { tenantWhere, requireTenantId, assertSameTenant } =
-  require("../../core/tenant");
+const {
+  tenantWhere,
+  requireTenantId,
+  assertSameTenant,
+} = require("../../core/tenant");
 
 // Helpers: الكورس/الأوضة لازم من نفس السنتر
 const assertCourseInTenant = async (courseId, tenantId) => {
@@ -89,7 +92,10 @@ const create = async (req, res, next) => {
         tenant_id: tenantId,
         room_id,
         day_of_week,
-        AND: [{ start_time: { lt: end_time } }, { end_time: { gt: start_time } }],
+        AND: [
+          { start_time: { lt: end_time } },
+          { end_time: { gt: start_time } },
+        ],
       },
       include: { course: { select: { id: true, name: true } } },
     });
@@ -162,8 +168,10 @@ const update = async (req, res, next) => {
     });
     assertSameTenant(req, existing);
 
-    if (course_id !== undefined) await assertCourseInTenant(course_id, existing.tenant_id);
-    if (room_id !== undefined) await assertRoomInTenant(room_id, existing.tenant_id);
+    if (course_id !== undefined)
+      await assertCourseInTenant(course_id, existing.tenant_id);
+    if (room_id !== undefined)
+      await assertRoomInTenant(room_id, existing.tenant_id);
 
     const schedule = await prisma.schedule.update({
       where: { id },

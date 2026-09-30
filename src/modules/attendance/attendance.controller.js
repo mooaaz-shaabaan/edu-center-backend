@@ -82,7 +82,9 @@ const assertBranchUsable = async (tenantId, branchId) => {
     throw err;
   }
   if (!branch.is_active) {
-    const err = new Error(`الفرع "${branch.name}" موقوف — مينفعش تسجّل عليه حضور.`);
+    const err = new Error(
+      `الفرع "${branch.name}" موقوف — مينفعش تسجّل عليه حضور.`,
+    );
     err.status = 400;
     throw err;
   }
@@ -217,7 +219,11 @@ const resolveSession = async (
 
   // مفيش ميعاد النهاردة → حصة واحدة افتراضية والحالة "حاضر"
   const status =
-    start === null ? "present" : minutesOf(now) <= start + grace ? "present" : "late";
+    start === null
+      ? "present"
+      : minutesOf(now) <= start + grace
+        ? "present"
+        : "late";
 
   return {
     sessionNo,
@@ -245,9 +251,7 @@ const listSessions = async (req, res, next) => {
     const raw = req.validated.query.date;
     const now = raw ? new Date(raw) : new Date();
     if (isNaN(now.getTime())) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Invalid date." });
+      return res.status(400).json({ success: false, message: "Invalid date." });
     }
 
     const course = await prisma.course.findFirst({
@@ -508,7 +512,9 @@ const handleRecord = async (req, res, next, { method, identifier }) => {
     }
 
     // ٣) مسجّل في المادة؟
-    const enrollment = student.enrollments.find((e) => e.course_id === courseId);
+    const enrollment = student.enrollments.find(
+      (e) => e.course_id === courseId,
+    );
     if (!enrollment) {
       return res.status(400).json({
         success: false,
@@ -736,7 +742,9 @@ const syncOffline = async (req, res, next) => {
         // مسجّل في المادة؟ (نفس شرط التسجيل المباشر)
         let enrollment = null;
         if (courseId) {
-          enrollment = student.enrollments.find((e) => e.course_id === courseId);
+          enrollment = student.enrollments.find(
+            (e) => e.course_id === courseId,
+          );
           if (!enrollment) {
             results.push({
               student_id: studentId,

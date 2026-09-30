@@ -49,7 +49,7 @@ const expectedBalance = async (db, drawer) => {
       sumOf(pay) +
       sumOf(dep) -
       sumOf(exp) -
-      sumOf(wd)
+      sumOf(wd),
   );
 };
 
@@ -73,11 +73,7 @@ const KIND_LABEL = {
  * `since` اختياري — من غيره بيرجّع من آخر جرد (اللي بيفسّر الرصيد
  * الحالي)، وبيه بيرجّع من أي تاريخ.
  */
-const drawerLedger = async (
-  db,
-  drawer,
-  { limit = 100, since = null } = {}
-) => {
+const drawerLedger = async (db, drawer, { limit = 100, since = null } = {}) => {
   const from = since ?? drawer.last_counted_at ?? drawer.created_at;
   const base = drawerMovementsWhere(drawer.id, from);
 
@@ -229,7 +225,8 @@ const expectedChangedError = (expected) => {
  */
 const resolveExpected = async (db, drawer, expectedSeen) => {
   const expected = await expectedBalance(db, drawer);
-  if (!expectedMatches(expectedSeen, expected)) throw expectedChangedError(expected);
+  if (!expectedMatches(expectedSeen, expected))
+    throw expectedChangedError(expected);
   return expected;
 };
 
@@ -258,7 +255,7 @@ const recordCount = async (
     counted,
     relatedUserId = null,
     note = null,
-  }
+  },
 ) => {
   const variance = round2(Number(counted) - Number(expected));
 

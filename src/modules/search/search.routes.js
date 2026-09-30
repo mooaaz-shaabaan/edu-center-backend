@@ -11,18 +11,17 @@ const { globalSearch } = require("./search.controller");
 
 const searchSchema = z.object({
   query: z.object({
-    q: z.string().trim().min(2, "Search query must be at least 2 characters.").max(100),
+    q: z
+      .string()
+      .trim()
+      .min(2, "Search query must be at least 2 characters.")
+      .max(100),
     tenant_id: z.coerce.number().int().positive().optional(), // للـ super_admin
   }),
 });
 
 router.use(auth);
 
-router.get(
-  "/",
-  validate(searchSchema),
-  requireRole(...STAFF),
-  globalSearch
-);
+router.get("/", validate(searchSchema), requireRole(...STAFF), globalSearch);
 
 module.exports = router;

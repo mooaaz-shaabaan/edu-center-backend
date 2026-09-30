@@ -10,8 +10,14 @@ const validateBranch = require("../../middlewares/validateBranch");
 const withNotify = require("../../core/withNotify");
 
 const {
-  openShift, closeShift, ackDrawer,
-  getAll, getSummary, getMine, getCurrent, getReport,
+  openShift,
+  closeShift,
+  ackDrawer,
+  getAll,
+  getSummary,
+  getMine,
+  getCurrent,
+  getReport,
 } = require("./shifts.controller");
 
 const idField = z.coerce.number().int().positive();
@@ -98,8 +104,14 @@ const summarySchema = z.object({
       .max(10000)
       .regex(/^\d+(,\d+)*$/, "ids must be comma-separated numbers.")
       .optional(),
-    month: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, "month must be YYYY-MM.").optional(),
-    year: z.string().regex(/^\d{4}$/, "year must be YYYY.").optional(),
+    month: z
+      .string()
+      .regex(/^\d{4}-(0[1-9]|1[0-2])$/, "month must be YYYY-MM.")
+      .optional(),
+    year: z
+      .string()
+      .regex(/^\d{4}$/, "year must be YYYY.")
+      .optional(),
     all_branches: z.enum(["true", "false"]).optional(),
     branch_id: idField.optional(),
     tenant_id: idField.optional(),
@@ -120,7 +132,7 @@ router.post(
   validate(openSchema),
   validateBranch({ required: true }),
   requireRole(...STAFF),
-  withNotify(openShift, ["shifts_updated", "drawers_updated"])
+  withNotify(openShift, ["shifts_updated", "drawers_updated"]),
 );
 
 // قفل الشيفت المفتوح بتاع اليوزر (أو شيفت محدد للمديرين)
@@ -132,7 +144,7 @@ router.post(
     "shifts_updated",
     "payments_updated",
     "drawers_updated",
-  ])
+  ]),
 );
 
 // تأكيد رصيد الدرج بعد ما حد تاني قفل عليه
@@ -140,7 +152,7 @@ router.post(
   "/ack",
   validate(ackSchema),
   requireRole(...STAFF),
-  withNotify(ackDrawer, ["shifts_updated", "drawers_updated"])
+  withNotify(ackDrawer, ["shifts_updated", "drawers_updated"]),
 );
 
 router.get("/current", requireRole(...STAFF), getCurrent);
@@ -153,7 +165,7 @@ router.get(
   "/summary",
   validate(summarySchema),
   requireRole(...STAFF),
-  getSummary
+  getSummary,
 );
 
 // كل الشيفتات — الريسبشن بيشوف بتاعته بس، والأدمن فروعه بس (مفلتر في الكنترولر)
@@ -163,7 +175,7 @@ router.get(
   "/:id/report",
   validate(reportSchema),
   requireRole(...STAFF),
-  getReport
+  getReport,
 );
 
 module.exports = router;

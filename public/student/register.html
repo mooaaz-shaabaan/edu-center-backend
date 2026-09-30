@@ -1,430 +1,687 @@
 # public\student\register.html
 <!doctype html>
 <html lang="ar" dir="rtl">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="robots" content="noindex, nofollow">
-<title>تسجيل طالب جديد</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
-<style>
-  :root{
-    --bg:#f5f6fa; --surface:#fff; --surface2:#f1f3f9;
-    --text:#161821; --muted:#6b7280; --border:#e3e6ef;
-    --primary:#4f46e5; --primary-weak:#eef2ff;
-    --danger:#dc2626; --danger-weak:#fef2f2;
-    --success:#059669; --success-weak:#ecfdf5;
-    --radius:14px;
-  }
-  @media (prefers-color-scheme: dark){
-    :root{
-      --bg:#0f1117; --surface:#171a22; --surface2:#1e222c;
-      --text:#f2f3f7; --muted:#9aa1ae; --border:#2a2f3b;
-      --primary:#8b87ff; --primary-weak:#1f1f3d;
-      --danger:#f87171; --danger-weak:#2a1414;
-      --success:#34d399; --success-weak:#0f2a22;
-    }
-  }
-  *{box-sizing:border-box}
-  html,body{margin:0;padding:0}
-  body{
-    background:var(--bg); color:var(--text);
-    font-family:"Cairo",system-ui,-apple-system,"Segoe UI",Tahoma,sans-serif;
-    font-size:16px; line-height:1.6;
-    padding:16px; padding-bottom:40px;
-    -webkit-text-size-adjust:100%;
-  }
-  .wrap{max-width:560px;margin:0 auto}
-
-  header{text-align:center;padding:18px 0 22px}
-  header .center{font-size:20px;font-weight:700;margin:0}
-  header .branch{color:var(--muted);font-size:14px;margin:4px 0 0}
-
-  .card{
-    background:var(--surface);border:1px solid var(--border);
-    border-radius:var(--radius);padding:18px;margin-bottom:14px;
-  }
-  .card h2{font-size:15px;font-weight:700;margin:0 0 14px}
-
-  label{display:block;font-size:13px;font-weight:600;margin:0 0 6px}
-  .hint{font-size:12px;color:var(--muted);font-weight:400}
-  .field{margin-bottom:14px}
-  .field:last-child{margin-bottom:0}
-
-  select{
-    width:100%;padding:13px 14px;font:inherit;font-size:16px;
-    color:var(--text);background:var(--surface2);
-    border:1px solid var(--border);border-radius:10px;
-    outline:none;appearance:none;
-    background-image:linear-gradient(45deg,transparent 50%,var(--muted) 50%),
-                     linear-gradient(135deg,var(--muted) 50%,transparent 50%);
-    background-position:calc(0% + 18px) calc(50% + 2px),calc(0% + 23px) calc(50% + 2px);
-    background-size:5px 5px,5px 5px;background-repeat:no-repeat;
-  }
-  select:focus{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-weak)}
-  select[aria-invalid=true]{border-color:var(--danger)}
-
-  input[type=text],input[type=tel],textarea{
-    width:100%;padding:13px 14px;font:inherit;font-size:16px;
-    color:var(--text);background:var(--surface2);
-    border:1px solid var(--border);border-radius:10px;
-    outline:none;transition:border-color .15s,box-shadow .15s;
-  }
-  input:focus,textarea:focus{
-    border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-weak);
-  }
-  input.ltr{direction:ltr;text-align:left}
-  textarea{resize:vertical;min-height:70px}
-  input[aria-invalid=true]{border-color:var(--danger)}
-  .err{color:var(--danger);font-size:12px;margin-top:5px;display:none}
-  .err.show{display:block}
-
-  /* المواد */
-  .courses{display:flex;flex-direction:column;gap:8px}
-  .course{
-    display:flex;align-items:center;gap:11px;
-    padding:12px 13px;border:1px solid var(--border);
-    border-radius:11px;background:var(--surface2);cursor:pointer;
-    min-height:48px;
-  }
-  .course input{width:20px;height:20px;accent-color:var(--primary);flex:none;margin:0}
-  .course .nm{flex:1;font-size:14px;font-weight:600}
-  .course .pr{font-size:13px;color:var(--muted);direction:ltr}
-  .course.on{border-color:var(--primary);background:var(--primary-weak)}
-
-  button{
-    width:100%;padding:15px;font:inherit;font-size:16px;font-weight:700;
-    color:#fff;background:var(--primary);border:0;border-radius:12px;
-    cursor:pointer;min-height:52px;
-  }
-  button[disabled]{opacity:.55;cursor:default}
-
-  .note{
-    background:var(--primary-weak);border:1px solid var(--border);
-    border-radius:11px;padding:12px 14px;font-size:13px;margin-bottom:14px;
-  }
-  .banner{
-    border-radius:11px;padding:13px 15px;font-size:14px;font-weight:600;
-    margin-bottom:14px;display:none;
-  }
-  .banner.show{display:block}
-  .banner.bad{background:var(--danger-weak);color:var(--danger)}
-  .banner.good{background:var(--success-weak);color:var(--success)}
-
-  .state{text-align:center;padding:56px 20px}
-  .state .ico{font-size:44px;line-height:1}
-  .state h2{font-size:18px;margin:14px 0 8px}
-  .state p{color:var(--muted);font-size:14px;margin:0}
-  [hidden]{display:none !important}
-</style>
-</head>
-<body>
-<div class="wrap">
-
-  <!-- تحميل -->
-  <div id="loading" class="state">
-    <div class="ico">⏳</div>
-    <p>بنحمّل الصفحة…</p>
-  </div>
-
-  <!-- رابط مش شغّال -->
-  <div id="dead" class="state" hidden>
-    <div class="ico">🔒</div>
-    <h2>الرابط ده مش شغّال</h2>
-    <p id="deadMsg">اطلب من موظف الاستقبال يوريك الكود من تاني.</p>
-  </div>
-
-  <!-- تم -->
-  <div id="done" class="state" hidden>
-    <div class="ico">✅</div>
-    <h2 id="doneTitle">تمام!</h2>
-    <p>طلبك وصل لموظف الاستقبال. هيراجعه ويفعّلك، وبعدها تاخد الكود بتاعك.</p>
-  </div>
-
-  <!-- الفورم -->
-  <form id="form" hidden novalidate>
-    <header>
-      <p class="center" id="centerName"></p>
-      <p class="branch" id="branchName"></p>
-    </header>
-
-    <div class="note">
-      املا بياناتك بنفسك، وموظف الاستقبال هيراجعها. رقم الموبايل ده
-      هو اللي هتدخل بيه بعدين تعدّل بياناتك، فخلّي بالك منه.
-    </div>
-
-    <div id="banner" class="banner bad"></div>
-
-    <div class="card">
-      <h2>بياناتك</h2>
-
-      <div class="field">
-        <label for="name">الاسم بالكامل</label>
-        <input id="name" type="text" autocomplete="name" enterkeyhint="next">
-        <div class="err" id="e_name"></div>
-      </div>
-
-      <div class="field">
-        <label for="phone">رقم موبايلك</label>
-        <input id="phone" class="ltr" type="tel" inputmode="numeric"
-               autocomplete="tel" maxlength="11" placeholder="01xxxxxxxxx">
-        <div class="err" id="e_phone"></div>
-      </div>
-
-      <div class="field">
-        <label for="parent">رقم ولي الأمر</label>
-        <input id="parent" class="ltr" type="tel" inputmode="numeric"
-               maxlength="11" placeholder="01xxxxxxxxx">
-        <div class="err" id="e_parent"></div>
-      </div>
-
-      <div class="field">
-        <label for="alt">رقم احتياطي <span class="hint">(اختياري)</span></label>
-        <input id="alt" class="ltr" type="tel" inputmode="numeric"
-               maxlength="11" placeholder="01xxxxxxxxx">
-        <div class="err" id="e_alt"></div>
-      </div>
-    </div>
-
-    <div class="card" id="semesterCard" hidden>
-      <h2>الصف الدراسي</h2>
-      <div class="field">
-        <select id="semester">
-          <option value="">— اختار الصف —</option>
-        </select>
-        <div class="err" id="e_semester"></div>
-      </div>
-    </div>
-
-    <div class="card" id="coursesCard">
-      <h2>المواد اللي عايز تشترك فيها</h2>
-      <div class="courses" id="courses"></div>
-      <div class="err" id="e_courses"></div>
-    </div>
-
-    <div class="card">
-      <h2>حاجة تحب تقولها؟ <span class="hint">(اختياري)</span></h2>
-      <textarea id="notes" maxlength="300" placeholder="مثلاً: بفضّل ميعاد الصبح"></textarea>
-    </div>
-
-    <button type="submit" id="submit">إرسال الطلب</button>
-  </form>
-</div>
-
-<script>
-(function () {
-  "use strict";
-
-  var token = new URLSearchParams(location.search).get("t") || "";
-  var $ = function (id) { return document.getElementById(id); };
-  var courses = [];
-  var semesters = [];
-
-  // ── الأرقام العربية الهندية → لاتينية ──────────────────
-  // الكيبورد العربي على أندرويد بيكتب ٠١٢٣، والسيرفر بيتوقّع 0123
-  function toLatin(s) {
-    return String(s || "").replace(/[٠-٩۰-۹]/g, function (d) {
-      var c = d.charCodeAt(0);
-      return String(c >= 0x06F0 ? c - 0x06F0 : c - 0x0660);
-    });
-  }
-
-  function cleanPhone(v) { return toLatin(v).replace(/[^\d]/g, ""); }
-  function validPhone(v) { return /^01[0125]\d{8}$/.test(v); }
-
-  function showErr(id, msg) {
-    var box = $("e_" + id), input = $(id === "parent" ? "parent" : id);
-    box.textContent = msg || "";
-    box.classList.toggle("show", !!msg);
-    if (input && input.tagName === "INPUT") {
-      if (msg) input.setAttribute("aria-invalid", "true");
-      else input.removeAttribute("aria-invalid");
-    }
-  }
-
-  function banner(msg, good) {
-    var b = $("banner");
-    b.textContent = msg;
-    b.className = "banner " + (good ? "good" : "bad") + (msg ? " show" : "");
-    if (msg) window.scrollTo({ top: 0, behavior: "smooth" });
-  }
-
-  function dead(msg) {
-    $("loading").hidden = true;
-    $("form").hidden = true;
-    if (msg) $("deadMsg").textContent = msg;
-    $("dead").hidden = false;
-  }
-
-  // ── تنضيف حقول الأرقام أثناء الكتابة ───────────────────
-  ["phone", "parent", "alt"].forEach(function (id) {
-    $(id).addEventListener("input", function () {
-      var c = cleanPhone(this.value).slice(0, 11);
-      if (c !== this.value) this.value = c;
-      showErr(id, "");
-    });
-  });
-  $("name").addEventListener("input", function () { showErr("name", ""); });
-
-  // ── تحميل بيانات الرابط ────────────────────────────────
-  fetch("/api/portal/register/" + encodeURIComponent(token), {
-    headers: { Accept: "application/json" }
-  })
-    .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
-    .then(function (res) {
-      if (!res.ok || !res.j.success) return dead(res.j.message);
-
-      var d = res.j.data;
-      $("centerName").textContent = d.center_name || "";
-      $("branchName").textContent = d.branch_name ? "فرع " + d.branch_name : "";
-      document.title = "تسجيل طالب جديد — " + (d.center_name || "");
-
-      courses = d.courses || [];
-      semesters = d.semesters || [];
-      renderSemesters();
-      renderCourses();
-
-      $("loading").hidden = true;
-      $("form").hidden = false;
-    })
-    .catch(function () {
-      dead("مش قادرين نوصل للسيرفر. اتأكد إن النت شغّال وجرّب تاني.");
-    });
-
-  function renderSemesters() {
-    if (!semesters.length) return; // الفرع مالوش فصول شغّالة
-
-    var sel = $("semester");
-    semesters.forEach(function (sm) {
-      var o = document.createElement("option");
-      o.value = sm.id;
-      o.textContent = sm.label || sm.name || "";
-      sel.appendChild(o);
-    });
-
-    sel.addEventListener("change", function () { showErr("semester", ""); });
-    $("semesterCard").hidden = false;
-  }
-
-  function renderCourses() {
-    if (!courses.length) {
-      $("coursesCard").hidden = true;
-      return;
-    }
-    var box = $("courses");
-    box.innerHTML = "";
-
-    courses.forEach(function (c) {
-      var row = document.createElement("label");
-      row.className = "course";
-
-      var cb = document.createElement("input");
-      cb.type = "checkbox";
-      cb.value = c.id;
-
-      var nm = document.createElement("span");
-      nm.className = "nm";
-      nm.textContent = c.name;
-
-      var pr = document.createElement("span");
-      pr.className = "pr";
-      pr.textContent = c.price > 0 ? c.price + " ج" : "";
-
-      cb.addEventListener("change", function () {
-        row.classList.toggle("on", cb.checked);
-        showErr("courses", "");
-      });
-
-      row.appendChild(cb);
-      row.appendChild(nm);
-      row.appendChild(pr);
-      box.appendChild(row);
-    });
-  }
-
-  function picked() {
-    return Array.prototype.slice
-      .call(document.querySelectorAll("#courses input:checked"))
-      .map(function (i) { return Number(i.value); });
-  }
-
-  // ── الإرسال ────────────────────────────────────────────
-  $("form").addEventListener("submit", function (ev) {
-    ev.preventDefault();
-    banner("");
-
-    var name = $("name").value.trim().replace(/\s+/g, " ");
-    var phone = cleanPhone($("phone").value);
-    var parent = cleanPhone($("parent").value);
-    var alt = cleanPhone($("alt").value);
-    var bad = false;
-
-    if (name.length < 2) { showErr("name", "اكتب اسمك بالكامل."); bad = true; }
-    if (!validPhone(phone)) {
-      showErr("phone", "رقم مش مظبوط — لازم يبدأ بـ 010 أو 011 أو 012 أو 015 ويكون ١١ رقم.");
-      bad = true;
-    }
-    if (!validPhone(parent)) { showErr("parent", "رقم ولي الأمر مش مظبوط."); bad = true; }
-    if (alt && !validPhone(alt)) { showErr("alt", "الرقم الاحتياطي مش مظبوط."); bad = true; }
-    if (!bad && parent === phone) {
-      showErr("parent", "رقم ولي الأمر لازم يكون مختلف عن رقمك.");
-      bad = true;
-    }
-    var semesterId = semesters.length ? Number($("semester").value || 0) : 0;
-    if (semesters.length && !semesterId) {
-      showErr("semester", "اختار الصف الدراسي.");
-      bad = true;
-    }
-    if (courses.length && picked().length === 0) {
-      showErr("courses", "اختار مادة واحدة على الأقل.");
-      bad = true;
-    }
-    if (bad) {
-      var first = document.querySelector('[aria-invalid="true"], .err.show');
-      if (first) first.scrollIntoView({ behavior: "smooth", block: "center" });
-      return;
-    }
-
-    var btn = $("submit");
-    btn.disabled = true;
-    btn.textContent = "بنبعت…";
-
-    fetch("/api/portal/register/" + encodeURIComponent(token), {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Accept: "application/json" },
-      body: JSON.stringify({
-        name: name,
-        phone: phone,
-        parent_phone: parent,
-        alt_phone: alt || undefined,
-        notes: $("notes").value.trim() || undefined,
-        semester_id: semesterId || undefined,
-        course_ids: picked()
-      })
-    })
-      .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
-      .then(function (res) {
-        if (res.ok && res.j.success) {
-          $("doneTitle").textContent = "تمام يا " + name.split(" ")[0] + "!";
-          $("form").hidden = true;
-          $("done").hidden = false;
-          return;
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>تسجيل طالب جديد</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg: #f5f6fa;
+        --surface: #fff;
+        --surface2: #f1f3f9;
+        --text: #161821;
+        --muted: #6b7280;
+        --border: #e3e6ef;
+        --primary: #4f46e5;
+        --primary-weak: #eef2ff;
+        --danger: #dc2626;
+        --danger-weak: #fef2f2;
+        --success: #059669;
+        --success-weak: #ecfdf5;
+        --radius: 14px;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #0f1117;
+          --surface: #171a22;
+          --surface2: #1e222c;
+          --text: #f2f3f7;
+          --muted: #9aa1ae;
+          --border: #2a2f3b;
+          --primary: #8b87ff;
+          --primary-weak: #1f1f3d;
+          --danger: #f87171;
+          --danger-weak: #2a1414;
+          --success: #34d399;
+          --success-weak: #0f2a22;
         }
-        if (res.j.code === "LINK_INVALID") return dead(res.j.message);
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        background: var(--bg);
+        color: var(--text);
+        font-family:
+          "Cairo",
+          system-ui,
+          -apple-system,
+          "Segoe UI",
+          Tahoma,
+          sans-serif;
+        font-size: 16px;
+        line-height: 1.6;
+        padding: 16px;
+        padding-bottom: 40px;
+        -webkit-text-size-adjust: 100%;
+      }
+      .wrap {
+        max-width: 560px;
+        margin: 0 auto;
+      }
 
-        btn.disabled = false;
-        btn.textContent = "إرسال الطلب";
-        banner(res.j.message || "حصلت مشكلة. جرّب تاني.");
-      })
-      .catch(function () {
-        btn.disabled = false;
-        btn.textContent = "إرسال الطلب";
-        banner("مش قادرين نوصل للسيرفر. اتأكد إن النت شغّال.");
-      });
-  });
-})();
-</script>
-</body>
+      header {
+        text-align: center;
+        padding: 18px 0 22px;
+      }
+      header .center {
+        font-size: 20px;
+        font-weight: 700;
+        margin: 0;
+      }
+      header .branch {
+        color: var(--muted);
+        font-size: 14px;
+        margin: 4px 0 0;
+      }
+
+      .card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 18px;
+        margin-bottom: 14px;
+      }
+      .card h2 {
+        font-size: 15px;
+        font-weight: 700;
+        margin: 0 0 14px;
+      }
+
+      label {
+        display: block;
+        font-size: 13px;
+        font-weight: 600;
+        margin: 0 0 6px;
+      }
+      .hint {
+        font-size: 12px;
+        color: var(--muted);
+        font-weight: 400;
+      }
+      .field {
+        margin-bottom: 14px;
+      }
+      .field:last-child {
+        margin-bottom: 0;
+      }
+
+      select {
+        width: 100%;
+        padding: 13px 14px;
+        font: inherit;
+        font-size: 16px;
+        color: var(--text);
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        outline: none;
+        appearance: none;
+        background-image:
+          linear-gradient(45deg, transparent 50%, var(--muted) 50%),
+          linear-gradient(135deg, var(--muted) 50%, transparent 50%);
+        background-position:
+          calc(0% + 18px) calc(50% + 2px),
+          calc(0% + 23px) calc(50% + 2px);
+        background-size:
+          5px 5px,
+          5px 5px;
+        background-repeat: no-repeat;
+      }
+      select:focus {
+        border-color: var(--primary);
+        box-shadow: 0 0 0 3px var(--primary-weak);
+      }
+      select[aria-invalid="true"] {
+        border-color: var(--danger);
+      }
+
+      input[type="text"],
+      input[type="tel"],
+      textarea {
+        width: 100%;
+        padding: 13px 14px;
+        font: inherit;
+        font-size: 16px;
+        color: var(--text);
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        outline: none;
+        transition:
+          border-color 0.15s,
+          box-shadow 0.15s;
+      }
+      input:focus,
+      textarea:focus {
+        border-color: var(--primary);
+        box-shadow: 0 0 0 3px var(--primary-weak);
+      }
+      input.ltr {
+        direction: ltr;
+        text-align: left;
+      }
+      textarea {
+        resize: vertical;
+        min-height: 70px;
+      }
+      input[aria-invalid="true"] {
+        border-color: var(--danger);
+      }
+      .err {
+        color: var(--danger);
+        font-size: 12px;
+        margin-top: 5px;
+        display: none;
+      }
+      .err.show {
+        display: block;
+      }
+
+      /* المواد */
+      .courses {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .course {
+        display: flex;
+        align-items: center;
+        gap: 11px;
+        padding: 12px 13px;
+        border: 1px solid var(--border);
+        border-radius: 11px;
+        background: var(--surface2);
+        cursor: pointer;
+        min-height: 48px;
+      }
+      .course input {
+        width: 20px;
+        height: 20px;
+        accent-color: var(--primary);
+        flex: none;
+        margin: 0;
+      }
+      .course .nm {
+        flex: 1;
+        font-size: 14px;
+        font-weight: 600;
+      }
+      .course .pr {
+        font-size: 13px;
+        color: var(--muted);
+        direction: ltr;
+      }
+      .course.on {
+        border-color: var(--primary);
+        background: var(--primary-weak);
+      }
+
+      button {
+        width: 100%;
+        padding: 15px;
+        font: inherit;
+        font-size: 16px;
+        font-weight: 700;
+        color: #fff;
+        background: var(--primary);
+        border: 0;
+        border-radius: 12px;
+        cursor: pointer;
+        min-height: 52px;
+      }
+      button[disabled] {
+        opacity: 0.55;
+        cursor: default;
+      }
+
+      .note {
+        background: var(--primary-weak);
+        border: 1px solid var(--border);
+        border-radius: 11px;
+        padding: 12px 14px;
+        font-size: 13px;
+        margin-bottom: 14px;
+      }
+      .banner {
+        border-radius: 11px;
+        padding: 13px 15px;
+        font-size: 14px;
+        font-weight: 600;
+        margin-bottom: 14px;
+        display: none;
+      }
+      .banner.show {
+        display: block;
+      }
+      .banner.bad {
+        background: var(--danger-weak);
+        color: var(--danger);
+      }
+      .banner.good {
+        background: var(--success-weak);
+        color: var(--success);
+      }
+
+      .state {
+        text-align: center;
+        padding: 56px 20px;
+      }
+      .state .ico {
+        font-size: 44px;
+        line-height: 1;
+      }
+      .state h2 {
+        font-size: 18px;
+        margin: 14px 0 8px;
+      }
+      .state p {
+        color: var(--muted);
+        font-size: 14px;
+        margin: 0;
+      }
+      [hidden] {
+        display: none !important;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <!-- تحميل -->
+      <div id="loading" class="state">
+        <div class="ico">⏳</div>
+        <p>بنحمّل الصفحة…</p>
+      </div>
+
+      <!-- رابط مش شغّال -->
+      <div id="dead" class="state" hidden>
+        <div class="ico">🔒</div>
+        <h2>الرابط ده مش شغّال</h2>
+        <p id="deadMsg">اطلب من موظف الاستقبال يوريك الكود من تاني.</p>
+      </div>
+
+      <!-- تم -->
+      <div id="done" class="state" hidden>
+        <div class="ico">✅</div>
+        <h2 id="doneTitle">تمام!</h2>
+        <p>
+          طلبك وصل لموظف الاستقبال. هيراجعه ويفعّلك، وبعدها تاخد الكود بتاعك.
+        </p>
+      </div>
+
+      <!-- الفورم -->
+      <form id="form" hidden novalidate>
+        <header>
+          <p class="center" id="centerName"></p>
+          <p class="branch" id="branchName"></p>
+        </header>
+
+        <div class="note">
+          املا بياناتك بنفسك، وموظف الاستقبال هيراجعها. رقم الموبايل ده هو اللي
+          هتدخل بيه بعدين تعدّل بياناتك، فخلّي بالك منه.
+        </div>
+
+        <div id="banner" class="banner bad"></div>
+
+        <div class="card">
+          <h2>بياناتك</h2>
+
+          <div class="field">
+            <label for="name">الاسم بالكامل</label>
+            <input
+              id="name"
+              type="text"
+              autocomplete="name"
+              enterkeyhint="next"
+            />
+            <div class="err" id="e_name"></div>
+          </div>
+
+          <div class="field">
+            <label for="phone">رقم موبايلك</label>
+            <input
+              id="phone"
+              class="ltr"
+              type="tel"
+              inputmode="numeric"
+              autocomplete="tel"
+              maxlength="11"
+              placeholder="01xxxxxxxxx"
+            />
+            <div class="err" id="e_phone"></div>
+          </div>
+
+          <div class="field">
+            <label for="parent">رقم ولي الأمر</label>
+            <input
+              id="parent"
+              class="ltr"
+              type="tel"
+              inputmode="numeric"
+              maxlength="11"
+              placeholder="01xxxxxxxxx"
+            />
+            <div class="err" id="e_parent"></div>
+          </div>
+
+          <div class="field">
+            <label for="alt"
+              >رقم احتياطي <span class="hint">(اختياري)</span></label
+            >
+            <input
+              id="alt"
+              class="ltr"
+              type="tel"
+              inputmode="numeric"
+              maxlength="11"
+              placeholder="01xxxxxxxxx"
+            />
+            <div class="err" id="e_alt"></div>
+          </div>
+        </div>
+
+        <div class="card" id="semesterCard" hidden>
+          <h2>الصف الدراسي</h2>
+          <div class="field">
+            <select id="semester">
+              <option value="">— اختار الصف —</option>
+            </select>
+            <div class="err" id="e_semester"></div>
+          </div>
+        </div>
+
+        <div class="card" id="coursesCard">
+          <h2>المواد اللي عايز تشترك فيها</h2>
+          <div class="courses" id="courses"></div>
+          <div class="err" id="e_courses"></div>
+        </div>
+
+        <div class="card">
+          <h2>حاجة تحب تقولها؟ <span class="hint">(اختياري)</span></h2>
+          <textarea
+            id="notes"
+            maxlength="300"
+            placeholder="مثلاً: بفضّل ميعاد الصبح"
+          ></textarea>
+        </div>
+
+        <button type="submit" id="submit">إرسال الطلب</button>
+      </form>
+    </div>
+
+    <script>
+      (function () {
+        "use strict";
+
+        var token = new URLSearchParams(location.search).get("t") || "";
+        var $ = function (id) {
+          return document.getElementById(id);
+        };
+        var courses = [];
+        var semesters = [];
+
+        // ── الأرقام العربية الهندية → لاتينية ──────────────────
+        // الكيبورد العربي على أندرويد بيكتب ٠١٢٣، والسيرفر بيتوقّع 0123
+        function toLatin(s) {
+          return String(s || "").replace(/[٠-٩۰-۹]/g, function (d) {
+            var c = d.charCodeAt(0);
+            return String(c >= 0x06f0 ? c - 0x06f0 : c - 0x0660);
+          });
+        }
+
+        function cleanPhone(v) {
+          return toLatin(v).replace(/[^\d]/g, "");
+        }
+        function validPhone(v) {
+          return /^01[0125]\d{8}$/.test(v);
+        }
+
+        function showErr(id, msg) {
+          var box = $("e_" + id),
+            input = $(id === "parent" ? "parent" : id);
+          box.textContent = msg || "";
+          box.classList.toggle("show", !!msg);
+          if (input && input.tagName === "INPUT") {
+            if (msg) input.setAttribute("aria-invalid", "true");
+            else input.removeAttribute("aria-invalid");
+          }
+        }
+
+        function banner(msg, good) {
+          var b = $("banner");
+          b.textContent = msg;
+          b.className =
+            "banner " + (good ? "good" : "bad") + (msg ? " show" : "");
+          if (msg) window.scrollTo({ top: 0, behavior: "smooth" });
+        }
+
+        function dead(msg) {
+          $("loading").hidden = true;
+          $("form").hidden = true;
+          if (msg) $("deadMsg").textContent = msg;
+          $("dead").hidden = false;
+        }
+
+        // ── تنضيف حقول الأرقام أثناء الكتابة ───────────────────
+        ["phone", "parent", "alt"].forEach(function (id) {
+          $(id).addEventListener("input", function () {
+            var c = cleanPhone(this.value).slice(0, 11);
+            if (c !== this.value) this.value = c;
+            showErr(id, "");
+          });
+        });
+        $("name").addEventListener("input", function () {
+          showErr("name", "");
+        });
+
+        // ── تحميل بيانات الرابط ────────────────────────────────
+        fetch("/api/portal/register/" + encodeURIComponent(token), {
+          headers: { Accept: "application/json" },
+        })
+          .then(function (r) {
+            return r.json().then(function (j) {
+              return { ok: r.ok, j: j };
+            });
+          })
+          .then(function (res) {
+            if (!res.ok || !res.j.success) return dead(res.j.message);
+
+            var d = res.j.data;
+            $("centerName").textContent = d.center_name || "";
+            $("branchName").textContent = d.branch_name
+              ? "فرع " + d.branch_name
+              : "";
+            document.title = "تسجيل طالب جديد — " + (d.center_name || "");
+
+            courses = d.courses || [];
+            semesters = d.semesters || [];
+            renderSemesters();
+            renderCourses();
+
+            $("loading").hidden = true;
+            $("form").hidden = false;
+          })
+          .catch(function () {
+            dead("مش قادرين نوصل للسيرفر. اتأكد إن النت شغّال وجرّب تاني.");
+          });
+
+        function renderSemesters() {
+          if (!semesters.length) return; // الفرع مالوش فصول شغّالة
+
+          var sel = $("semester");
+          semesters.forEach(function (sm) {
+            var o = document.createElement("option");
+            o.value = sm.id;
+            o.textContent = sm.label || sm.name || "";
+            sel.appendChild(o);
+          });
+
+          sel.addEventListener("change", function () {
+            showErr("semester", "");
+          });
+          $("semesterCard").hidden = false;
+        }
+
+        function renderCourses() {
+          if (!courses.length) {
+            $("coursesCard").hidden = true;
+            return;
+          }
+          var box = $("courses");
+          box.innerHTML = "";
+
+          courses.forEach(function (c) {
+            var row = document.createElement("label");
+            row.className = "course";
+
+            var cb = document.createElement("input");
+            cb.type = "checkbox";
+            cb.value = c.id;
+
+            var nm = document.createElement("span");
+            nm.className = "nm";
+            nm.textContent = c.name;
+
+            var pr = document.createElement("span");
+            pr.className = "pr";
+            pr.textContent = c.price > 0 ? c.price + " ج" : "";
+
+            cb.addEventListener("change", function () {
+              row.classList.toggle("on", cb.checked);
+              showErr("courses", "");
+            });
+
+            row.appendChild(cb);
+            row.appendChild(nm);
+            row.appendChild(pr);
+            box.appendChild(row);
+          });
+        }
+
+        function picked() {
+          return Array.prototype.slice
+            .call(document.querySelectorAll("#courses input:checked"))
+            .map(function (i) {
+              return Number(i.value);
+            });
+        }
+
+        // ── الإرسال ────────────────────────────────────────────
+        $("form").addEventListener("submit", function (ev) {
+          ev.preventDefault();
+          banner("");
+
+          var name = $("name").value.trim().replace(/\s+/g, " ");
+          var phone = cleanPhone($("phone").value);
+          var parent = cleanPhone($("parent").value);
+          var alt = cleanPhone($("alt").value);
+          var bad = false;
+
+          if (name.length < 2) {
+            showErr("name", "اكتب اسمك بالكامل.");
+            bad = true;
+          }
+          if (!validPhone(phone)) {
+            showErr(
+              "phone",
+              "رقم مش مظبوط — لازم يبدأ بـ 010 أو 011 أو 012 أو 015 ويكون ١١ رقم.",
+            );
+            bad = true;
+          }
+          if (!validPhone(parent)) {
+            showErr("parent", "رقم ولي الأمر مش مظبوط.");
+            bad = true;
+          }
+          if (alt && !validPhone(alt)) {
+            showErr("alt", "الرقم الاحتياطي مش مظبوط.");
+            bad = true;
+          }
+          if (!bad && parent === phone) {
+            showErr("parent", "رقم ولي الأمر لازم يكون مختلف عن رقمك.");
+            bad = true;
+          }
+          var semesterId = semesters.length
+            ? Number($("semester").value || 0)
+            : 0;
+          if (semesters.length && !semesterId) {
+            showErr("semester", "اختار الصف الدراسي.");
+            bad = true;
+          }
+          if (courses.length && picked().length === 0) {
+            showErr("courses", "اختار مادة واحدة على الأقل.");
+            bad = true;
+          }
+          if (bad) {
+            var first = document.querySelector(
+              '[aria-invalid="true"], .err.show',
+            );
+            if (first)
+              first.scrollIntoView({ behavior: "smooth", block: "center" });
+            return;
+          }
+
+          var btn = $("submit");
+          btn.disabled = true;
+          btn.textContent = "بنبعت…";
+
+          fetch("/api/portal/register/" + encodeURIComponent(token), {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Accept: "application/json",
+            },
+            body: JSON.stringify({
+              name: name,
+              phone: phone,
+              parent_phone: parent,
+              alt_phone: alt || undefined,
+              notes: $("notes").value.trim() || undefined,
+              semester_id: semesterId || undefined,
+              course_ids: picked(),
+            }),
+          })
+            .then(function (r) {
+              return r.json().then(function (j) {
+                return { ok: r.ok, j: j };
+              });
+            })
+            .then(function (res) {
+              if (res.ok && res.j.success) {
+                $("doneTitle").textContent =
+                  "تمام يا " + name.split(" ")[0] + "!";
+                $("form").hidden = true;
+                $("done").hidden = false;
+                return;
+              }
+              if (res.j.code === "LINK_INVALID") return dead(res.j.message);
+
+              btn.disabled = false;
+              btn.textContent = "إرسال الطلب";
+              banner(res.j.message || "حصلت مشكلة. جرّب تاني.");
+            })
+            .catch(function () {
+              btn.disabled = false;
+              btn.textContent = "إرسال الطلب";
+              banner("مش قادرين نوصل للسيرفر. اتأكد إن النت شغّال.");
+            });
+        });
+      })();
+    </script>
+  </body>
 </html>

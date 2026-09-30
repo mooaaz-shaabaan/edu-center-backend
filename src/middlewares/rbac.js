@@ -66,14 +66,14 @@ const requireRole = (...allowedRoles) => {
 
     const userRole = String(req.user.role).toLowerCase();
     const isAllowed = allowedRoles.some(
-      (r) => String(r).toLowerCase() === userRole
+      (r) => String(r).toLowerCase() === userRole,
     );
 
     if (!isAllowed) {
       return deny(
         res,
         "Forbidden. You don't have permission to perform this action.",
-        { requiredRoles: allowedRoles, yourRole: req.user.role }
+        { requiredRoles: allowedRoles, yourRole: req.user.role },
       );
     }
 
@@ -111,7 +111,7 @@ const requireBranchAccess = (requiredFeature) => {
 
     const grantedIds = access
       .filter((ba) =>
-        effectiveFeatures(req.user.role, ba.features).includes(requiredFeature)
+        effectiveFeatures(req.user.role, ba.features).includes(requiredFeature),
       )
       .map((ba) => ba.branchId);
 
@@ -131,14 +131,14 @@ const requireBranchAccess = (requiredFeature) => {
       return deny(
         res,
         "Forbidden. You don't have access to this feature on this branch.",
-        { requiredFeature, requestedBranch: branchId }
+        { requiredFeature, requestedBranch: branchId },
       );
     }
 
     req.branchId = branchId;
     req.allowedBranchIds = [branchId];
     req.selectedBranchName = access.find(
-      (ba) => ba.branchId === branchId
+      (ba) => ba.branchId === branchId,
     )?.branchName;
 
     next();
@@ -176,7 +176,7 @@ const requireMultipleFeatures = (...requiredFeatures) => {
       return deny(
         res,
         "Forbidden. You don't have access to all required features.",
-        { requiredFeatures }
+        { requiredFeatures },
       );
     }
 
@@ -189,14 +189,14 @@ const requireMultipleFeatures = (...requiredFeatures) => {
       return deny(
         res,
         "Forbidden. You don't have access to all required features on this branch.",
-        { requiredFeatures, requestedBranch: branchId }
+        { requiredFeatures, requestedBranch: branchId },
       );
     }
 
     req.branchId = branchId;
     req.allowedBranchIds = [branchId];
     req.selectedBranchName = access.find(
-      (ba) => ba.branchId === branchId
+      (ba) => ba.branchId === branchId,
     )?.branchName;
 
     next();

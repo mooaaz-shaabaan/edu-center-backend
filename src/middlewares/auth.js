@@ -50,7 +50,10 @@ module.exports = async (req, res, next) => {
       });
     }
 
-    if (user.role !== "super_admin" && (!user.tenant || !user.tenant.is_active)) {
+    if (
+      user.role !== "super_admin" &&
+      (!user.tenant || !user.tenant.is_active)
+    ) {
       return res.status(403).json({
         success: false,
         message: "Center account is inactive.",

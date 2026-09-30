@@ -26,7 +26,13 @@ const sendWhatsApp = async ({ phone, type, data, student_id = null }) => {
 
     if (!apiUrl || !apiKey || apiKey === "your_whatsapp_api_key") {
       console.warn("⚠️ WhatsApp API not configured.");
-      await logNotification({ student_id, type, phone, message, status: "failed" });
+      await logNotification({
+        student_id,
+        type,
+        phone,
+        message,
+        status: "failed",
+      });
       return { success: false, reason: "API not configured" };
     }
 
@@ -44,12 +50,24 @@ const sendWhatsApp = async ({ phone, type, data, student_id = null }) => {
     return { success: response.ok, message };
   } catch (err) {
     console.error("❌ WhatsApp send error:", err.message);
-    await logNotification({ student_id, type, phone, message: buildMessage(type, data), status: "failed" });
+    await logNotification({
+      student_id,
+      type,
+      phone,
+      message: buildMessage(type, data),
+      status: "failed",
+    });
     return { success: false, error: err.message };
   }
 };
 
-const logNotification = async ({ student_id, type, phone, message, status }) => {
+const logNotification = async ({
+  student_id,
+  type,
+  phone,
+  message,
+  status,
+}) => {
   try {
     await prisma.notificationLog.create({
       data: { student_id: student_id || null, type, phone, message, status },

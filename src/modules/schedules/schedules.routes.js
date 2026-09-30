@@ -8,11 +8,18 @@ const { requireRole, STAFF, MANAGERS } = require("../../middlewares/rbac");
 const validate = require("../../middlewares/validate");
 const withNotify = require("../../core/withNotify");
 
-const { getAll, create, update, remove, getConflicts } =
-  require("./schedules.controller");
+const {
+  getAll,
+  create,
+  update,
+  remove,
+  getConflicts,
+} = require("./schedules.controller");
 
 const idField = z.coerce.number().int().positive();
-const timeStr = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Time must be HH:MM.");
+const timeStr = z
+  .string()
+  .regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Time must be HH:MM.");
 
 const listSchema = z.object({
   query: z.object({
@@ -50,38 +57,29 @@ const idParam = z.object({ params: z.object({ id: idField }) });
 
 router.use(auth);
 
-router.get(
-  "/",
-  validate(listSchema),
-  requireRole(...STAFF),
-  getAll
-);
+router.get("/", validate(listSchema), requireRole(...STAFF), getAll);
 
-router.get(
-  "/conflicts",
-  requireRole("admin", "super_admin"),
-  getConflicts
-);
+router.get("/conflicts", requireRole("admin", "super_admin"), getConflicts);
 
 router.post(
   "/",
   validate(createSchema),
   requireRole("admin", "super_admin"),
-  withNotify(create, "schedules_updated")
+  withNotify(create, "schedules_updated"),
 );
 
 router.put(
   "/:id",
   validate(updateSchema),
   requireRole("admin", "super_admin"),
-  withNotify(update, "schedules_updated")
+  withNotify(update, "schedules_updated"),
 );
 
 router.delete(
   "/:id",
   validate(idParam),
   requireRole("admin", "super_admin"),
-  withNotify(remove, "schedules_updated")
+  withNotify(remove, "schedules_updated"),
 );
 
 module.exports = router;

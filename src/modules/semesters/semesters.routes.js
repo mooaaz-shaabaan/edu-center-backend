@@ -9,8 +9,15 @@ const validate = require("../../middlewares/validate");
 const withNotify = require("../../core/withNotify");
 
 const {
-  getAll, create, update, remove, bulkSetActive,
-  enroll, getEnrollments, removeEnrollment, moveSemester,
+  getAll,
+  create,
+  update,
+  remove,
+  bulkSetActive,
+  enroll,
+  getEnrollments,
+  removeEnrollment,
+  moveSemester,
 } = require("./semesters.controller");
 
 const idField = z.coerce.number().int().positive();
@@ -97,14 +104,14 @@ router.get(
   "/semesters",
   validate(semesterListSchema),
   requireRole(...STAFF),
-  getAll
+  getAll,
 );
 
 router.post(
   "/semesters",
   validate(createSemesterSchema),
   requireRole(...MANAGERS),
-  withNotify(create, ["semesters_updated"])
+  withNotify(create, ["semesters_updated"]),
 );
 
 // ⚠️ لازم قبل /semesters/:id — وإلا "bulk-active" هيتحسب id
@@ -112,21 +119,21 @@ router.put(
   "/semesters/bulk-active",
   validate(bulkActiveSchema),
   requireRole(...MANAGERS),
-  withNotify(bulkSetActive, ["semesters_updated"])
+  withNotify(bulkSetActive, ["semesters_updated"]),
 );
 
 router.put(
   "/semesters/:id",
   validate(updateSemesterSchema),
   requireRole(...MANAGERS), // ← كان admin/super_admin بس، فالأونر مكنش يقدر يعدّل
-  withNotify(update, ["semesters_updated"])
+  withNotify(update, ["semesters_updated"]),
 );
 
 router.delete(
   "/semesters/:id",
   validate(idParam),
   requireRole(...MANAGERS),
-  withNotify(remove, ["semesters_updated"])
+  withNotify(remove, ["semesters_updated"]),
 );
 
 // ── Enrollments ───────────────────────────────────────────
@@ -134,14 +141,14 @@ router.get(
   "/enrollments",
   validate(enrollListSchema),
   requireRole(...STAFF),
-  getEnrollments
+  getEnrollments,
 );
 
 router.post(
   "/enrollments",
   validate(enrollSchema),
   requireRole(...STAFF),
-  withNotify(enroll, ["students_updated", "payments_updated"])
+  withNotify(enroll, ["students_updated", "payments_updated"]),
 );
 
 // ⚠️ لازم قبل /enrollments/:id
@@ -149,14 +156,14 @@ router.put(
   "/enrollments/semester",
   validate(moveSemesterSchema),
   requireRole(...STAFF),
-  withNotify(moveSemester, ["students_updated"])
+  withNotify(moveSemester, ["students_updated"]),
 );
 
 router.delete(
   "/enrollments/:id",
   validate(idParam),
   requireRole("admin", "super_admin"),
-  withNotify(removeEnrollment, ["students_updated"])
+  withNotify(removeEnrollment, ["students_updated"]),
 );
 
 module.exports = router;

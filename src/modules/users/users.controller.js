@@ -1,16 +1,24 @@
 // src/modules/users/users.controller.js
 const prisma = require("../../config/db");
 const bcrypt = require("bcryptjs");
-const { tenantWhere, requireTenantId, assertSameTenant } =
-  require("../../core/tenant");
-const { isConnected, endSession, closeUserStreams } =
-  require("../../core/session");
+const {
+  tenantWhere,
+  requireTenantId,
+  assertSameTenant,
+} = require("../../core/tenant");
+const {
+  isConnected,
+  endSession,
+  closeUserStreams,
+} = require("../../core/session");
 const { notify, notifyUser } = require("../../core/sse");
 const { closeShiftWithTotals } = require("../shifts/shifts.service");
 
 // مصدر واحد للحقيقة — الميدل وير هو اللي بيطبّق نفس المنع وقت الطلب
-const { FEATURES_BLOCKED_BY_ROLE, effectiveFeatures } =
-  require("../../middlewares/rbac");
+const {
+  FEATURES_BLOCKED_BY_ROLE,
+  effectiveFeatures,
+} = require("../../middlewares/rbac");
 
 // ─────────────────────────────────────────────────────────
 // ثوابت الأدوار والصلاحيات
@@ -18,17 +26,17 @@ const { FEATURES_BLOCKED_BY_ROLE, effectiveFeatures } =
 
 // مين يقدر ينشئ/يعدّل مين
 const ASSIGNABLE_ROLES_BY_ROLE = {
-  super_admin:  ["owner", "admin", "receptionist"],
-  owner:        ["owner", "admin", "receptionist"],
-  admin:        ["receptionist"],
+  super_admin: ["owner", "admin", "receptionist"],
+  owner: ["owner", "admin", "receptionist"],
+  admin: ["receptionist"],
   receptionist: [],
 };
 
 // الرُتب — عشان نمنع الأقل رتبة إنه يعدّل الأعلى
 const ROLE_RANK = {
-  super_admin:  4,
-  owner:        3,
-  admin:        2,
+  super_admin: 4,
+  owner: 3,
+  admin: 2,
   receptionist: 1,
 };
 
@@ -59,7 +67,10 @@ const FULL_ACCESS_ROLES = ["super_admin", "owner"];
 // ─────────────────────────────────────────────────────────
 
 const parseFeatures = (str) =>
-  (str || "").split(",").map((f) => f.trim()).filter(Boolean);
+  (str || "")
+    .split(",")
+    .map((f) => f.trim())
+    .filter(Boolean);
 
 const httpError = (message, status = 400) => {
   const err = new Error(message);
@@ -80,7 +91,7 @@ const assertEmailMatchesTenantDomain = async (email, tenantId) => {
   if (domain !== tenant.email_domain.toLowerCase()) {
     throw httpError(
       `Email must be on the center's domain (@${tenant.email_domain}).`,
-      400
+      400,
     );
   }
 };
@@ -118,7 +129,7 @@ const getGrantableFeatures = (req, branchId) => {
   if (FULL_ACCESS_ROLES.includes(req.user.role)) return [...ALLOWED_FEATURES];
 
   const access = (req.user.branchAccess || []).find(
-    (ba) => ba.branchId === branchId
+    (ba) => ba.branchId === branchId,
   );
   // الممنوع على دوره هو مايقدرش يمنحه لحد تاني
   return access ? effectiveFeatures(req.user.role, access.features) : [];
@@ -144,7 +155,9 @@ const visibleUsersWhere = async (req) => {
       { id: req.user.id },
       { created_by: req.user.id },
       if_branches(branchIds),
-    ].flat().filter(Boolean),
+    ]
+      .flat()
+      .filter(Boolean),
   };
 };
 
@@ -183,7 +196,7 @@ const assertCanManage = async (req, target) => {
   });
 
   const targetBranches = new Set(
-    [t.branch_id, ...t.branch_access.map((ba) => ba.branch_id)].filter(Boolean)
+    [t.branch_id, ...t.branch_access.map((ba) => ba.branch_id)].filter(Boolean),
   );
 
   if (targetBranches.size === 0) {
@@ -228,11 +241,13 @@ const validateBranchGrants = async (req, tenantId, grants, targetRole) => {
     if (!grantable.includes(g.branch_id)) {
       throw httpError(
         `You don't have access to branch ${g.branch_id}, so you can't grant it.`,
-        403
+        403,
       );
     }
 
-    const requested = g.features?.length ? g.features : parseFeatures(DEFAULT_FEATURES);
+    const requested = g.features?.length
+      ? g.features
+      : parseFeatures(DEFAULT_FEATURES);
 
     // 1) لازم تكون من الـ whitelist
     const unknown = requested.filter((f) => !ALLOWED_FEATURES.includes(f));
@@ -245,7 +260,7 @@ const validateBranchGrants = async (req, tenantId, grants, targetRole) => {
     if (forbidden.length) {
       throw httpError(
         `الدور "${targetRole}" مايقدرش ياخد: ${forbidden.join(", ")}`,
-        400
+        400,
       );
     }
 
@@ -255,7 +270,7 @@ const validateBranchGrants = async (req, tenantId, grants, targetRole) => {
     if (notMine.length) {
       throw httpError(
         `You don't have these feature(s) on this branch: ${notMine.join(", ")}`,
-        403
+        403,
       );
     }
 
@@ -319,8 +334,14 @@ const getUsers = async (req, res, next) => {
 // ─────────────────────────────────────────────────────────
 const createUser = async (req, res, next) => {
   try {
-    const { name, email, password, role: userRole, branch_id, branches } =
-      req.validated.body;
+    const {
+      name,
+      email,
+      password,
+      role: userRole,
+      branch_id,
+      branches,
+    } = req.validated.body;
 
     const tenantId = requireTenantId(req);
 
@@ -340,7 +361,7 @@ const createUser = async (req, res, next) => {
     const normalized = (branches || []).map((b) =>
       typeof b === "number"
         ? { branch_id: b, features: parseFeatures(DEFAULT_FEATURES) }
-        : { branch_id: b.branch_id, features: b.features || [] }
+        : { branch_id: b.branch_id, features: b.features || [] },
     );
 
     // 4) الفرع الأساسي (branch_id) لازم يكون ضمن المسموح كمان
@@ -356,7 +377,7 @@ const createUser = async (req, res, next) => {
       req,
       tenantId,
       normalized,
-      userRole
+      userRole,
     );
 
     const hashed = await bcrypt.hash(password, 12);
@@ -427,8 +448,13 @@ const createUser = async (req, res, next) => {
 const updateUser = async (req, res, next) => {
   try {
     const id = req.validated.params.id;
-    const { name, email, is_active, role: userRole, branch_id } =
-      req.validated.body;
+    const {
+      name,
+      email,
+      is_active,
+      role: userRole,
+      branch_id,
+    } = req.validated.body;
 
     const target = await prisma.user.findUnique({
       where: { id },
@@ -440,7 +466,9 @@ const updateUser = async (req, res, next) => {
     // على نفسي: الاسم والإيميل بس (الباسورد من /password)
     if (
       target.id === req.user.id &&
-      (userRole !== undefined || is_active !== undefined || branch_id !== undefined)
+      (userRole !== undefined ||
+        is_active !== undefined ||
+        branch_id !== undefined)
     ) {
       return res.status(403).json({
         success: false,
@@ -534,7 +562,7 @@ const updateUser = async (req, res, next) => {
         });
         for (const row of rows) {
           const kept = parseFeatures(row.features).filter(
-            (f) => !blockedAfter.includes(f)
+            (f) => !blockedAfter.includes(f),
           );
           if (kept.length === parseFeatures(row.features).length) continue;
           // فرع من غير ولا صلاحية مالوش معنى — يتشال
@@ -553,7 +581,8 @@ const updateUser = async (req, res, next) => {
         const open = await tx.shift.findFirst({
           where: { user_id: id, closed_at: null },
         });
-        if (open) closedShift = await closeShiftWithTotals(tx, open, req.user.id);
+        if (open)
+          closedShift = await closeShiftWithTotals(tx, open, req.user.id);
         await endSession(id, tx);
       }
 
@@ -603,7 +632,10 @@ const resetUserPassword = async (req, res, next) => {
         where: { id },
         data: { password: hashed },
       });
-      return res.json({ success: true, message: "Password reset successfully." });
+      return res.json({
+        success: true,
+        message: "Password reset successfully.",
+      });
     }
 
     // باسورد حد تاني → بيتخرج من البرنامج ويقدر يدخل على طول بالباسورد الجديد
@@ -655,7 +687,7 @@ const getUserBranchAccess = async (req, res, next) => {
     const blockedForTarget = FEATURES_BLOCKED_BY_ROLE[target.role] || [];
 
     const accessMap = new Map(
-      target.branch_access.map((ba) => [ba.branch_id, ba])
+      target.branch_access.map((ba) => [ba.branch_id, ba]),
     );
 
     const data = branches.map((branch) => {
@@ -669,7 +701,7 @@ const getUserBranchAccess = async (req, res, next) => {
           : [],
         // الفيتشرز اللي أقدر أديها على الفرع ده (لتعطيل الاختيارات في الـ UI)
         grantable_features: getGrantableFeatures(req, branch.id).filter(
-          (f) => !blockedForTarget.includes(f)
+          (f) => !blockedForTarget.includes(f),
         ),
         // هل أقدر أعدّل الفرع ده أصلاً
         can_manage: grantable.includes(branch.id),
@@ -704,7 +736,7 @@ const updateUserBranchAccess = async (req, res, next) => {
       req,
       target.tenant_id,
       [{ branch_id: branchId, features: features || [] }],
-      target.role
+      target.role,
     );
 
     const saved = await prisma.userBranchAccess.upsert({

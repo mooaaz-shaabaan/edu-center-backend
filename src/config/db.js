@@ -8,8 +8,7 @@
 
 // module.exports = prisma;
 
-
-const { PrismaClient } = require('@prisma/client');
+const { PrismaClient } = require("@prisma/client");
 
 // Prisma ستقوم تلقائياً بقراءة DATABASE_URL من ملف .env
 const prisma = new PrismaClient();

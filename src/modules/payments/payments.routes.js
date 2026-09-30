@@ -11,9 +11,15 @@ const validate = require("../../middlewares/validate");
 const withNotify = require("../../core/withNotify");
 
 const {
-  getAll, create, getReceipt,
-  getCash, cashTransaction,
-  getExpenses, createExpense, updateExpense, deleteExpense,
+  getAll,
+  create,
+  getReceipt,
+  getCash,
+  cashTransaction,
+  getExpenses,
+  createExpense,
+  updateExpense,
+  deleteExpense,
 } = require("./payments.controller");
 
 const idField = z.coerce.number().int().positive();
@@ -107,7 +113,6 @@ const deleteExpenseSchema = z.object({
 
 router.use(auth);
 
-
 // ── PAYMENTS ──────────────────────────────────────────────
 router.get(
   "/",
@@ -115,7 +120,7 @@ router.get(
   validateBranch({ required: false }),
   requireRole(...STAFF),
   requireBranchAccess("payments"),
-  getAll
+  getAll,
 );
 
 router.post(
@@ -124,7 +129,7 @@ router.post(
   validateBranch({ required: true }),
   requireRole(...STAFF),
   requireBranchAccess("payments"),
-  withNotify(create, ["payments_updated", "drawers_updated"])
+  withNotify(create, ["payments_updated", "drawers_updated"]),
 );
 
 router.get(
@@ -132,7 +137,7 @@ router.get(
   validate(receiptSchema),
   requireRole(...STAFF),
   requireBranchAccess("payments"),
-  getReceipt
+  getReceipt,
 );
 
 // ── CASH ──────────────────────────────────────────────────
@@ -142,7 +147,7 @@ router.get(
   validateBranch({ required: false }),
   requireRole(...STAFF),
   requireBranchAccess("payments"),
-  getCash
+  getCash,
 );
 
 router.post(
@@ -151,7 +156,7 @@ router.post(
   validateBranch({ required: true }),
   requireRole(...STAFF),
   requireBranchAccess("payments"),
-  withNotify(cashTransaction, ["payments_updated", "drawers_updated"])
+  withNotify(cashTransaction, ["payments_updated", "drawers_updated"]),
 );
 
 // ── EXPENSES ──────────────────────────────────────────────
@@ -161,7 +166,7 @@ router.get(
   validateBranch({ required: false }),
   requireRole(...STAFF),
   requireBranchAccess("expenses"),
-  getExpenses
+  getExpenses,
 );
 
 router.post(
@@ -170,7 +175,7 @@ router.post(
   validateBranch({ required: true }),
   requireRole(...STAFF),
   requireBranchAccess("expenses"),
-  withNotify(createExpense, ["payments_updated", "drawers_updated"])
+  withNotify(createExpense, ["payments_updated", "drawers_updated"]),
 );
 
 router.put(
@@ -178,7 +183,7 @@ router.put(
   validate(updateExpenseSchema),
   requireRole("admin", "super_admin", "owner"), // تعديل: المديرين بس
   requireBranchAccess("expenses"),
-  withNotify(updateExpense, ["payments_updated", "drawers_updated"])
+  withNotify(updateExpense, ["payments_updated", "drawers_updated"]),
 );
 
 router.delete(
@@ -186,7 +191,7 @@ router.delete(
   validate(deleteExpenseSchema),
   requireRole("admin", "super_admin", "owner"), // حذف: المديرين بس
   requireBranchAccess("expenses"),
-  withNotify(deleteExpense, ["payments_updated", "drawers_updated"])
+  withNotify(deleteExpense, ["payments_updated", "drawers_updated"]),
 );
 
 module.exports = router;

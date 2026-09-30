@@ -3,8 +3,11 @@ const prisma = require("../../config/db");
 const { generateQRCode } = require("../../utils/qrGenerator");
 const { generatePortalCode } = require("../../utils/portalCode");
 const { validateEgyptianPhone } = require("../../utils/phoneValidator");
-const { tenantWhere, requireTenantId, assertSameTenant } =
-  require("../../core/tenant");
+const {
+  tenantWhere,
+  requireTenantId,
+  assertSameTenant,
+} = require("../../core/tenant");
 const { resolveShiftId } = require("../../core/currentShift");
 const { resolveDrawerId, sendDrawerError } = require("../../core/drawerScope");
 
@@ -88,11 +91,20 @@ const getAll = async (req, res, next) => {
         //   collation عربي على العمود — شوف الـ migration في الشرح.
         orderBy: [{ name: "asc" }, { id: "asc" }],
         select: {
-          id: true, name: true, phone: true, parent_phone: true,
-          alt_phone: true, portal_code: true, branch_id: true,
-          is_active: true, created_at: true, updated_at: true,
-          sync_status: true, shift_id: true,
-          wallet_enabled: true, wallet_balance: true,
+          id: true,
+          name: true,
+          phone: true,
+          parent_phone: true,
+          alt_phone: true,
+          portal_code: true,
+          branch_id: true,
+          is_active: true,
+          created_at: true,
+          updated_at: true,
+          sync_status: true,
+          shift_id: true,
+          wallet_enabled: true,
+          wallet_balance: true,
           branch: { select: { id: true, name: true } },
           enrollments: {
             include: { course: { select: { id: true, name: true } } },
@@ -139,8 +151,15 @@ const getOne = async (req, res, next) => {
 // ── POST /api/students ────────────────────────────────────
 const create = async (req, res, next) => {
   try {
-    const { name, phone, parent_phone, alt_phone, branch_id, shift_id, wallet_enabled } =
-      req.validated.body;
+    const {
+      name,
+      phone,
+      parent_phone,
+      alt_phone,
+      branch_id,
+      shift_id,
+      wallet_enabled,
+    } = req.validated.body;
 
     // السنتر من اليوزر (super_admin لازم يكون مختار سنتر)
     const tenantId = requireTenantId(req);
@@ -148,7 +167,8 @@ const create = async (req, res, next) => {
     if (!validateEgyptianPhone(phone)) {
       return res.status(400).json({
         success: false,
-        message: "Invalid phone number. Must start with 010/011/012/015 and be 11 digits.",
+        message:
+          "Invalid phone number. Must start with 010/011/012/015 and be 11 digits.",
       });
     }
     if (!validateEgyptianPhone(parent_phone)) {
@@ -168,9 +188,9 @@ const create = async (req, res, next) => {
     if (duplicate) {
       return res.status(409).json({
         success: false,
-     message: duplicate.is_active
-       ? `الرقم ده متسجّل بالفعل للطالب «${duplicate.name}» في ${duplicate.branch?.name ?? "السنتر"}.`
-       : `الرقم ده متسجّل للطالب «${duplicate.name}» (غير مفعّل) في ${duplicate.branch?.name ?? "السنتر"} — فعّله بدل ما تضيفه من جديد.`,
+        message: duplicate.is_active
+          ? `الرقم ده متسجّل بالفعل للطالب «${duplicate.name}» في ${duplicate.branch?.name ?? "السنتر"}.`
+          : `الرقم ده متسجّل للطالب «${duplicate.name}» (غير مفعّل) في ${duplicate.branch?.name ?? "السنتر"} — فعّله بدل ما تضيفه من جديد.`,
         data: { existing_id: duplicate.id, is_active: duplicate.is_active },
       });
     }
@@ -246,8 +266,16 @@ const create = async (req, res, next) => {
 const update = async (req, res, next) => {
   try {
     const id = req.validated.params.id;
-    const { name, phone, parent_phone, alt_phone, branch_id, is_active, photo, wallet_enabled } =
-      req.validated.body;
+    const {
+      name,
+      phone,
+      parent_phone,
+      alt_phone,
+      branch_id,
+      is_active,
+      photo,
+      wallet_enabled,
+    } = req.validated.body;
 
     // تأكد إن الطالب موجود وتابع لنفس السنتر
     const existing = await prisma.student.findUnique({
@@ -270,7 +298,7 @@ const update = async (req, res, next) => {
       const duplicate = await findDuplicate(
         existing.tenant_id,
         phone.trim(),
-        id
+        id,
       );
 
       if (duplicate) {
@@ -306,10 +334,19 @@ const update = async (req, res, next) => {
         // ملاحظة: wallet_balance مش هنا عمدًا — الرصيد يتغيّر بالشحن/الخصم بس
       },
       select: {
-        id: true, name: true, phone: true, parent_phone: true,
-        alt_phone: true, portal_code: true, branch_id: true,
-        is_active: true, created_at: true, sync_status: true, shift_id: true,
-        wallet_enabled: true, wallet_balance: true,
+        id: true,
+        name: true,
+        phone: true,
+        parent_phone: true,
+        alt_phone: true,
+        portal_code: true,
+        branch_id: true,
+        is_active: true,
+        created_at: true,
+        sync_status: true,
+        shift_id: true,
+        wallet_enabled: true,
+        wallet_balance: true,
         branch: { select: { id: true, name: true } },
         enrollments: {
           include: { course: { select: { id: true, name: true } } },
@@ -322,7 +359,7 @@ const update = async (req, res, next) => {
       message: "Student updated successfully.",
       data: student,
     });
-   } catch (err) {
+  } catch (err) {
     if (err.code === "P2002") {
       return res.status(409).json({
         success: false,
@@ -406,7 +443,10 @@ const getQR = async (req, res, next) => {
 
     assertSameTenant(req, student);
 
-    res.json({ success: true, data: { name: student.name, qr_code: student.qr_code } });
+    res.json({
+      success: true,
+      data: { name: student.name, qr_code: student.qr_code },
+    });
   } catch (err) {
     next(err);
   }
@@ -420,7 +460,13 @@ const chargeWallet = async (req, res, next) => {
 
     const student = await prisma.student.findUnique({
       where: { id },
-      select: { id: true, name: true, tenant_id: true, branch_id: true, wallet_enabled: true },
+      select: {
+        id: true,
+        name: true,
+        tenant_id: true,
+        branch_id: true,
+        wallet_enabled: true,
+      },
     });
 
     assertSameTenant(req, student);
@@ -522,4 +568,12 @@ const findDuplicate = async (tenantId, phone, excludeId = null) =>
     },
   });
 
-module.exports = { getAll, getOne, create, update, remove, getQR, chargeWallet };
+module.exports = {
+  getAll,
+  getOne,
+  create,
+  update,
+  remove,
+  getQR,
+  chargeWallet,
+};

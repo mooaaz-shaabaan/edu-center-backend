@@ -9,8 +9,14 @@ const validate = require("../../middlewares/validate");
 const withNotify = require("../../core/withNotify");
 
 const {
-  getDrawers, getDrawerState, getDrawerCounts, getDrawerLedger,
-  createDrawer, updateDrawer, deleteDrawer, manualCount,
+  getDrawers,
+  getDrawerState,
+  getDrawerCounts,
+  getDrawerLedger,
+  createDrawer,
+  updateDrawer,
+  deleteDrawer,
+  manualCount,
 } = require("./drawers.controller");
 
 const idField = z.coerce.number().int().positive();
@@ -88,7 +94,7 @@ router.get(
   "/:id/state",
   validate(idParam),
   requireRole(...STAFF),
-  getDrawerState
+  getDrawerState,
 );
 
 // كشف حركة الدرج — كل حاجة دخلت أو خرجت ومين عملها.
@@ -98,7 +104,7 @@ router.get(
   "/:id/ledger",
   validate(ledgerSchema),
   requireRole(...STAFF),
-  getDrawerLedger
+  getDrawerLedger,
 );
 
 // سجل الجرد (مين عدّ وكام العجز) — للمديرين بس
@@ -106,7 +112,7 @@ router.get(
   "/:id/counts",
   validate(countsSchema),
   requireRole(...MANAGERS),
-  getDrawerCounts
+  getDrawerCounts,
 );
 
 // إدارة الدروج — الأونر وأدمن الفرع
@@ -114,21 +120,21 @@ router.post(
   "/",
   validate(createSchema),
   requireRole(...MANAGERS),
-  withNotify(createDrawer, "drawers_updated")
+  withNotify(createDrawer, "drawers_updated"),
 );
 
 router.put(
   "/:id",
   validate(updateSchema),
   requireRole(...MANAGERS),
-  withNotify(updateDrawer, "drawers_updated")
+  withNotify(updateDrawer, "drawers_updated"),
 );
 
 router.delete(
   "/:id",
   validate(idParam),
   requireRole(...MANAGERS),
-  withNotify(deleteDrawer, "drawers_updated")
+  withNotify(deleteDrawer, "drawers_updated"),
 );
 
 // جرد يدوي — بيخلي أي حد شغال على الدرج يأكد الرصيد الجديد
@@ -136,7 +142,7 @@ router.post(
   "/:id/count",
   validate(countSchema),
   requireRole(...MANAGERS),
-  withNotify(manualCount, ["drawers_updated", "shifts_updated"])
+  withNotify(manualCount, ["drawers_updated", "shifts_updated"]),
 );
 
 module.exports = router;

@@ -40,7 +40,9 @@ const globalSearch = async (req, res, next) => {
     });
 
     if (!payment || !payment.student_id) {
-      return res.status(404).json({ success: false, message: "No results found." });
+      return res
+        .status(404)
+        .json({ success: false, message: "No results found." });
     }
 
     return getStudentFullData(req, payment.student_id, res, next);
@@ -59,57 +61,79 @@ const getStudentFullData = async (req, studentId, res, next) => {
       where: { id: studentId },
       select: { id: true, tenant_id: true },
     });
-    if (!studentCheck || (tenantId !== null && studentCheck.tenant_id !== tenantId)) {
-      return res.status(404).json({ success: false, message: "No results found." });
+    if (
+      !studentCheck ||
+      (tenantId !== null && studentCheck.tenant_id !== tenantId)
+    ) {
+      return res
+        .status(404)
+        .json({ success: false, message: "No results found." });
     }
 
-    const [student, payments, attendance, installments, grades] = await Promise.all([
-      prisma.student.findUnique({
-        where: { id: studentId },
-        include: {
-          branch: { select: { id: true, name: true } },
-          enrollments: {
-            include: { course: { select: { id: true, name: true, price: true } } },
+    const [student, payments, attendance, installments, grades] =
+      await Promise.all([
+        prisma.student.findUnique({
+          where: { id: studentId },
+          include: {
+            branch: { select: { id: true, name: true } },
+            enrollments: {
+              include: {
+                course: { select: { id: true, name: true, price: true } },
+              },
+            },
           },
-        },
-      }),
-      prisma.payment.findMany({
-        where: { student_id: studentId },
-        orderBy: { paid_at: "desc" },
-        select: {
-          id: true, receipt_number: true, amount: true,
-          paid_at: true, notes: true,
-          shift: { select: { id: true, opened_at: true } },
-        },
-      }),
-      prisma.attendance.findMany({
-        where: { student_id: studentId },
-        orderBy: { date: "desc" },
-        take: 30,
-        select: { id: true, date: true, status: true, method: true },
-      }),
-      prisma.installment.findMany({
-        where: { student_id: studentId },
-        orderBy: { due_date: "asc" },
-        select: {
-          id: true, amount: true, due_date: true, paid_at: true, status: true,
-          enrollment: { include: { course: { select: { id: true, name: true } } } },
-        },
-      }),
-      prisma.studentGrade.findMany({
-        where: { student_id: studentId },
-        include: { exam: { select: { title: true, exam_date: true } } },
-      }),
-    ]);
+        }),
+        prisma.payment.findMany({
+          where: { student_id: studentId },
+          orderBy: { paid_at: "desc" },
+          select: {
+            id: true,
+            receipt_number: true,
+            amount: true,
+            paid_at: true,
+            notes: true,
+            shift: { select: { id: true, opened_at: true } },
+          },
+        }),
+        prisma.attendance.findMany({
+          where: { student_id: studentId },
+          orderBy: { date: "desc" },
+          take: 30,
+          select: { id: true, date: true, status: true, method: true },
+        }),
+        prisma.installment.findMany({
+          where: { student_id: studentId },
+          orderBy: { due_date: "asc" },
+          select: {
+            id: true,
+            amount: true,
+            due_date: true,
+            paid_at: true,
+            status: true,
+            enrollment: {
+              include: { course: { select: { id: true, name: true } } },
+            },
+          },
+        }),
+        prisma.studentGrade.findMany({
+          where: { student_id: studentId },
+          include: { exam: { select: { title: true, exam_date: true } } },
+        }),
+      ]);
 
-    const totalPaid = payments.reduce((sum, p) => sum + parseFloat(p.amount), 0);
-    const presentCount = attendance.filter((a) => a.status === "present").length;
+    const totalPaid = payments.reduce(
+      (sum, p) => sum + parseFloat(p.amount),
+      0,
+    );
+    const presentCount = attendance.filter(
+      (a) => a.status === "present",
+    ).length;
     const attendancePercentage =
       attendance.length > 0
         ? `${((presentCount / attendance.length) * 100).toFixed(1)}%`
         : "0%";
     const overdueInstallments = installments.filter(
-      (i) => i.status !== "paid" && new Date(i.due_date) < new Date()
+      (i) => i.status !== "paid" && new Date(i.due_date) < new Date(),
     ).length;
 
     res.json({

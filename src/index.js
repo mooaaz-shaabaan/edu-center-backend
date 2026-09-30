@@ -17,11 +17,13 @@ async function main() {
     await prisma.$connect();
     console.log("✅ Database connected");
 
-       server = app.listen(PORT, "0.0.0.0", () => {
+    server = app.listen(PORT, "0.0.0.0", () => {
       console.log(`🚀 Server running on http://localhost:${PORT}`);
       console.log(`📋 Health check: http://localhost:${PORT}/api/health`);
       console.log(`🌍 Environment: ${process.env.NODE_ENV}`);
-      console.log(`🕐 Timezone: ${Intl.DateTimeFormat().resolvedOptions().timeZone} — ${new Date().toString()}`);
+      console.log(
+        `🕐 Timezone: ${Intl.DateTimeFormat().resolvedOptions().timeZone} — ${new Date().toString()}`,
+      );
 
       startBackupScheduler();
     });

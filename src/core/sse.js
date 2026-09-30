@@ -63,4 +63,10 @@ function disconnectUser(userId) {
   }
 }
 
-module.exports = { addClient, removeClient, notify, notifyUser, disconnectUser };
+module.exports = {
+  addClient,
+  removeClient,
+  notify,
+  notifyUser,
+  disconnectUser,
+};

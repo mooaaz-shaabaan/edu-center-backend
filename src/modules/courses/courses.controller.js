@@ -1,7 +1,10 @@
 // src/modules/courses/courses.controller.js
 const prisma = require("../../config/db");
-const { tenantWhere, requireTenantId, assertSameTenant } =
-  require("../../core/tenant");
+const {
+  tenantWhere,
+  requireTenantId,
+  assertSameTenant,
+} = require("../../core/tenant");
 const { getAllowedBranchIds } = require("../../core/branchScope");
 const { assertBranchAccess } = require("../branches/branches.controller");
 
@@ -57,13 +60,18 @@ const assertBranchesInTenant = async (branchIds, tenantId) => {
  *   (الفروع المربوطة قبل كده بتعدّي عادي عشان تعديل الاسم
  *   مايتقفلش على مادة في فرع موقوف)
  */
-const assertBranchesUsable = async (req, branchIds, tenantId, newIds = null) => {
+const assertBranchesUsable = async (
+  req,
+  branchIds,
+  tenantId,
+  newIds = null,
+) => {
   const rows = await assertBranchesInTenant(branchIds, tenantId);
   const mustBeActive = newIds ?? branchIds;
   const dead = rows.filter((b) => mustBeActive.includes(b.id) && !b.is_active);
   if (dead.length > 0) {
     throw badRequest(
-      `الفرع "${dead[0].name}" موقوف — مينفعش تضيف المادة عليه.`
+      `الفرع "${dead[0].name}" موقوف — مينفعش تضيف المادة عليه.`,
     );
   }
   return rows;
@@ -73,7 +81,7 @@ const assertBranchesUsable = async (req, branchIds, tenantId, newIds = null) => 
 const assertSchedulesInBranches = (schedules, branchIds) => {
   if (!schedules) return;
   const invalid = schedules.some(
-    (s) => s.branch_id != null && !branchIds.includes(s.branch_id)
+    (s) => s.branch_id != null && !branchIds.includes(s.branch_id),
   );
   if (invalid) {
     throw badRequest("فيه ميعاد على فرع المادة مش متاحة فيه.");
@@ -296,7 +304,7 @@ const updateCourse = async (req, res, next) => {
     assertCourseVisible(req, existingBranchIds); // ← 403 لو المادة مش في فروعه
 
     const existingPrices = Object.fromEntries(
-      existing.branches.map((b) => [b.branch_id, b.price])
+      existing.branches.map((b) => [b.branch_id, b.price]),
     );
 
     // ── الفروع والأسعار: بتتحسب بس لو اتبعت أي حاجة منهم ──
@@ -319,9 +327,10 @@ const updateCourse = async (req, res, next) => {
 
       pricing = resolvePricing({
         mode,
-        price: mode === "unified" ? price ?? existing.price : price,
+        price: mode === "unified" ? (price ?? existing.price) : price,
         branches:
-          branches ?? existing.branches.map((b) => ({ branch_id: b.branch_id })),
+          branches ??
+          existing.branches.map((b) => ({ branch_id: b.branch_id })),
         existingPrices,
       });
     }
@@ -331,10 +340,10 @@ const updateCourse = async (req, res, next) => {
       : existingBranchIds;
 
     const removed = existingBranchIds.filter(
-      (bid) => !finalBranchIds.includes(bid)
+      (bid) => !finalBranchIds.includes(bid),
     );
     const added = finalBranchIds.filter(
-      (bid) => !existingBranchIds.includes(bid)
+      (bid) => !existingBranchIds.includes(bid),
     );
 
     if (pricing) {
@@ -531,7 +540,10 @@ const getCourseStats = async (req, res, next) => {
     //   وكان مفتوح لأي ريسبشن على أي مادة في السنتر، ومن غير أي
     //   تقييد بالفرع. دلوقتي لازم صلاحية على فرع من فروع المادة،
     //   والأرقام كلها متقيّدة بفروعه هو.
-    assertCourseVisible(req, course.branches.map((b) => b.branch_id));
+    assertCourseVisible(
+      req,
+      course.branches.map((b) => b.branch_id),
+    );
 
     const branchScope = allowed ? { branch_id: { in: allowed } } : {};
     const studentScope = allowed
@@ -571,13 +583,11 @@ const getCourseStats = async (req, res, next) => {
     });
 
     const present =
-      attendanceRecords.find((r) => r.status === "present")?._count.status ||
-      0;
+      attendanceRecords.find((r) => r.status === "present")?._count.status || 0;
     const late =
       attendanceRecords.find((r) => r.status === "late")?._count.status || 0;
     const absent =
-      attendanceRecords.find((r) => r.status === "absent")?._count.status ||
-      0;
+      attendanceRecords.find((r) => r.status === "absent")?._count.status || 0;
     const totalAttendance = present + late + absent;
 
     // ── حضور كل طالب على حدة (لعرضهم في قائمة) ─────────────

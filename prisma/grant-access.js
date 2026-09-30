@@ -50,7 +50,7 @@ async function main() {
 
     if (!branch) {
       console.log(
-        `⚠️  ${u.name} — الفرع ${u.branch_id} مش تابع للسنتر ${u.tenant_id}`
+        `⚠️  ${u.name} — الفرع ${u.branch_id} مش تابع للسنتر ${u.tenant_id}`,
       );
       skipped++;
       continue;
@@ -86,7 +86,7 @@ async function main() {
   });
   if (fullAccess > 0) {
     console.log(
-      `\nℹ️  ${fullAccess} مستخدم بدور owner/super_admin — عندهم وصول ضمني لكل الفروع، مش محتاجين صفوف.`
+      `\nℹ️  ${fullAccess} مستخدم بدور owner/super_admin — عندهم وصول ضمني لكل الفروع، مش محتاجين صفوف.`,
     );
   }
 }

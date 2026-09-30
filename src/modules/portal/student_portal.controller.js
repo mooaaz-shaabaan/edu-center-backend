@@ -349,7 +349,11 @@ const portalAuth = (req, res, next) => {
   if (!token) {
     return res
       .status(401)
-      .json({ success: false, code: "NO_SESSION", message: "سجّل دخول الأول." });
+      .json({
+        success: false,
+        code: "NO_SESSION",
+        message: "سجّل دخول الأول.",
+      });
   }
 
   try {
@@ -358,7 +362,8 @@ const portalAuth = (req, res, next) => {
       audience: PORTAL_AUDIENCE,
     });
 
-    if (payload.scope !== "portal" || !payload.sid) throw new Error("bad scope");
+    if (payload.scope !== "portal" || !payload.sid)
+      throw new Error("bad scope");
 
     req.portal = { studentId: payload.sid, tenantId: payload.tenant_id };
     next();

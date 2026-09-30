@@ -9,8 +9,14 @@ const validate = require("../../middlewares/validate");
 const withNotify = require("../../core/withNotify");
 
 const {
-  getBranches, createBranch, updateBranch, deleteBranch, getBranchStats,
-  getRooms, createRoom, updateRoom,
+  getBranches,
+  createBranch,
+  updateBranch,
+  deleteBranch,
+  getBranchStats,
+  getRooms,
+  createRoom,
+  updateRoom,
 } = require("./branches.controller");
 
 /// إنشاء وحذف الفرع — الأونر والسوبر أدمن بس.
@@ -93,21 +99,21 @@ router.get(
   "/branches",
   validate(listBranchesSchema),
   requireRole(...STAFF),
-  getBranches
+  getBranches,
 );
 
 router.get(
   "/branches/:id/stats",
   validate(idParam),
   requireRole(...MANAGERS), // الإحصائيات المالية: المديرين بس
-  getBranchStats
+  getBranchStats,
 );
 
 router.post(
   "/branches",
   validate(createBranchSchema),
   requireRole(...BRANCH_OWNERS),
-  withNotify(createBranch, "branches_updated")
+  withNotify(createBranch, "branches_updated"),
 );
 
 // التعديل (الاسم/العنوان/الإيقاف) لسه للمديرين — الأدمن بيحتاجه
@@ -115,14 +121,14 @@ router.put(
   "/branches/:id",
   validate(updateBranchSchema),
   requireRole(...MANAGERS),
-  withNotify(updateBranch, "branches_updated")
+  withNotify(updateBranch, "branches_updated"),
 );
 
 router.delete(
   "/branches/:id",
   validate(idParam),
   requireRole(...BRANCH_OWNERS),
-  withNotify(deleteBranch, "branches_updated")
+  withNotify(deleteBranch, "branches_updated"),
 );
 
 // ── Rooms ─────────────────────────────────────────────────
@@ -130,21 +136,21 @@ router.get(
   "/rooms",
   validate(roomsListSchema),
   requireRole(...STAFF),
-  getRooms
+  getRooms,
 );
 
 router.post(
   "/rooms",
   validate(createRoomSchema),
   requireRole(...MANAGERS),
-  withNotify(createRoom, "branches_updated")
+  withNotify(createRoom, "branches_updated"),
 );
 
 router.put(
   "/rooms/:id",
   validate(updateRoomSchema),
   requireRole(...MANAGERS),
-  withNotify(updateRoom, "branches_updated")
+  withNotify(updateRoom, "branches_updated"),
 );
 
 module.exports = router;

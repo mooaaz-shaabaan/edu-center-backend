@@ -9,8 +9,15 @@ const validate = require("../../middlewares/validate");
 const validateBranch = require("../../middlewares/validateBranch");
 const withNotify = require("../../core/withNotify");
 
-const { getAll, getOne, create, update, remove, getQR, chargeWallet } =
-  require("./students.controller");
+const {
+  getAll,
+  getOne,
+  create,
+  update,
+  remove,
+  getQR,
+  chargeWallet,
+} = require("./students.controller");
 
 // ── Schemas ───────────────────────────────────────────────
 const idField = z.coerce.number().int().positive();
@@ -95,46 +102,31 @@ const chargeSchema = z.object({
 
 router.use(auth);
 
-router.get(
-  "/",
-  validate(listSchema),
-  requireRole(...STAFF),
-  getAll
-);
+router.get("/", validate(listSchema), requireRole(...STAFF), getAll);
 
-router.get(
-  "/:id",
-  validate(idParam),
-  requireRole(...STAFF),
-  getOne
-);
+router.get("/:id", validate(idParam), requireRole(...STAFF), getOne);
 
-router.get(
-  "/:id/qr",
-  validate(idParam),
-  requireRole(...STAFF),
-  getQR
-);
+router.get("/:id/qr", validate(idParam), requireRole(...STAFF), getQR);
 
 router.post(
   "/",
   validate(createSchema),
   requireRole(...STAFF),
-  withNotify(create, ["students_updated", "payments_updated"])
+  withNotify(create, ["students_updated", "payments_updated"]),
 );
 
 router.put(
   "/:id",
   validate(updateSchema),
   requireRole(...STAFF),
-  withNotify(update, ["students_updated"])
+  withNotify(update, ["students_updated"]),
 );
 
 router.delete(
   "/:id",
   validate(idParam),
   requireRole(...MANAGERS), // admin بس
-  withNotify(remove, ["students_updated"])
+  withNotify(remove, ["students_updated"]),
 );
 
 /// شحن المحفظة — فلوس بتدخل الدرج.
@@ -156,7 +148,7 @@ router.post(
   validate(chargeSchema),
   validateBranch({ required: true }),
   requireRole(...STAFF),
-  withNotify(chargeWallet, ["payments_updated", "students_updated"])
+  withNotify(chargeWallet, ["payments_updated", "students_updated"]),
 );
 
 module.exports = router;

@@ -2,24 +2,37 @@
 const express = require("express");
 const router = express.Router();
 const auth = require("../../middlewares/auth");
-const role = require("../../middlewares/role");
+const { requireRole, STAFF, MANAGERS } = require("../../middlewares/rbac");
+
 const {
-  getRevenue,
-  getProfit,
-  getAttendance,
-  getTopCourses,
-  getRenewals,
-  getStudentReport,
+  getRevenue, getProfit, getSummary, getAttendance, getTopCourses,
+  getRenewals, getStudentReport, getTodayRevenue, getMonthRevenue,
 } = require("./reports.controller");
 
-// كل الـ reports Admin فقط
-router.use(auth, role("admin"));
+// كل التقارير محتاجة login
+router.use(auth);
 
-router.get("/revenue",      getRevenue);
-router.get("/profit",       getProfit);
-router.get("/attendance",   getAttendance);
-router.get("/top-courses",  getTopCourses);
-router.get("/renewals",     getRenewals);
-router.get("/students",     getStudentReport);
+// today و month: أي موظف (بيظهروا في الداشبورد)
+router.get(
+  "/today", 
+  requireRole(...STAFF),
+  getTodayRevenue
+);
+router.get(
+  "/month", 
+  requireRole(...STAFF),
+  getMonthRevenue
+);
+
+// باقي التقارير التفصيلية: admin بس
+router.use(requireRole("admin", "super_admin" , "owner"));
+
+router.get("/revenue", getRevenue);
+router.get("/profit", getProfit);
+router.get("/summary", getSummary); // ← التقرير اليومي/الشهري بكل العمليات
+router.get("/attendance", getAttendance);
+router.get("/top-courses", getTopCourses);
+router.get("/renewals", getRenewals);
+router.get("/students", getStudentReport);
 
 module.exports = router;

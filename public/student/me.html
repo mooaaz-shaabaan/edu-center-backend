@@ -1,0 +1,1069 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#4f46e5">
+<title>بياناتي</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#f5f6fa; --surface:#fff; --surface2:#f1f3f9;
+    --text:#161821; --muted:#6b7280; --border:#e3e6ef;
+    --primary:#4f46e5; --primary-weak:#eef2ff;
+    --danger:#dc2626; --danger-weak:#fef2f2;
+    --success:#059669; --success-weak:#ecfdf5;
+    --warn:#d97706; --warn-weak:#fffbeb;
+    --radius:14px;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#0f1117; --surface:#171a22; --surface2:#1e222c;
+      --text:#f2f3f7; --muted:#9aa1ae; --border:#2a2f3b;
+      --primary:#8b87ff; --primary-weak:#1f1f3d;
+      --danger:#f87171; --danger-weak:#2a1414;
+      --success:#34d399; --success-weak:#0f2a22;
+      --warn:#fbbf24; --warn-weak:#2a2212;
+    }
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:var(--bg);color:var(--text);
+    font-family:"Cairo",system-ui,-apple-system,"Segoe UI",Tahoma,sans-serif;
+    font-size:16px;line-height:1.6;padding:16px;padding-bottom:40px;
+    -webkit-text-size-adjust:100%;
+  }
+  .wrap{max-width:560px;margin:0 auto}
+
+  header{text-align:center;padding:18px 0 22px}
+  header h1{font-size:20px;font-weight:700;margin:0}
+  header p{color:var(--muted);font-size:14px;margin:4px 0 0}
+
+  .card{
+    background:var(--surface);border:1px solid var(--border);
+    border-radius:var(--radius);padding:18px;margin-bottom:14px;
+  }
+  .card h2{font-size:15px;font-weight:700;margin:0 0 14px}
+
+  label{display:block;font-size:13px;font-weight:600;margin:0 0 6px}
+  .hint{font-size:12px;color:var(--muted);font-weight:400}
+  .field{margin-bottom:14px}
+  .field:last-child{margin-bottom:0}
+
+  select{
+    width:100%;padding:13px 14px;font:inherit;font-size:16px;
+    color:var(--text);background:var(--surface2);
+    border:1px solid var(--border);border-radius:10px;
+    outline:none;appearance:none;
+    background-image:linear-gradient(45deg,transparent 50%,var(--muted) 50%),
+                     linear-gradient(135deg,var(--muted) 50%,transparent 50%);
+    background-position:calc(0% + 18px) calc(50% + 2px),calc(0% + 23px) calc(50% + 2px);
+    background-size:5px 5px,5px 5px;background-repeat:no-repeat;
+  }
+  select:focus{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-weak)}
+
+  input[type=text],input[type=tel]{
+    width:100%;padding:13px 14px;font:inherit;font-size:16px;
+    color:var(--text);background:var(--surface2);
+    border:1px solid var(--border);border-radius:10px;outline:none;
+    transition:border-color .15s,box-shadow .15s;
+  }
+  input:focus{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-weak)}
+  input.ltr{direction:ltr;text-align:left}
+  input[aria-invalid=true]{border-color:var(--danger)}
+  .err{color:var(--danger);font-size:12px;margin-top:5px;display:none}
+  .err.show{display:block}
+
+  /* ── رأس البروفايل ─────────────────────────────── */
+  .profile{
+    display:flex;align-items:center;gap:14px;
+    background:var(--surface);border:1px solid var(--border);
+    border-radius:var(--radius);padding:16px;margin-bottom:14px;
+  }
+  .avatar{
+    width:62px;height:62px;border-radius:50%;flex:none;
+    background:var(--primary);color:#fff;
+    display:flex;align-items:center;justify-content:center;
+    font-size:26px;font-weight:800;overflow:hidden;
+  }
+  .avatar img{width:100%;height:100%;object-fit:cover}
+  .profile .who{flex:1;min-width:0}
+  .profile .nm{font-size:18px;font-weight:800;line-height:1.35}
+  .profile .br{font-size:12.5px;color:var(--muted)}
+  .codechip{
+    display:inline-flex;align-items:center;gap:6px;margin-top:6px;
+    padding:4px 10px;border-radius:8px;cursor:pointer;
+    background:var(--primary-weak);color:var(--primary);
+    font-size:12.5px;font-weight:700;border:0;width:auto;min-height:0;
+  }
+
+  /* ── أرقام سريعة ───────────────────────────────── */
+  .stats{display:flex;gap:10px;margin-bottom:14px}
+  .stat{
+    flex:1;background:var(--surface);border:1px solid var(--border);
+    border-radius:12px;padding:12px 10px;text-align:center;
+  }
+  .stat .v{font-size:20px;font-weight:800;line-height:1.3}
+  .stat .k{font-size:11px;color:var(--muted)}
+
+  /* ── المحفظة ───────────────────────────────────── */
+  .wallet{
+    display:flex;align-items:center;gap:14px;
+    padding:16px 18px;border-radius:var(--radius);margin-bottom:14px;
+    background:var(--primary-weak);border:1px solid var(--border);
+  }
+  .wallet.empty{background:var(--danger-weak)}
+  .wallet .ico{font-size:26px;line-height:1;flex:none}
+  .wallet .body{flex:1;min-width:0}
+  .wallet .k{font-size:12px;color:var(--muted);font-weight:600}
+  .wallet .amt{font-size:26px;font-weight:700;line-height:1.3;margin-top:2px}
+  .wallet .amt .cur{font-size:14px;font-weight:600;color:var(--muted)}
+  .wallet.empty .amt{color:var(--danger)}
+  .wallet .hint{font-size:11.5px;color:var(--muted);margin-top:4px}
+
+  /* ── التبويبات ─────────────────────────────────── */
+  .tabs{
+    display:flex;gap:6px;background:var(--surface2);
+    border:1px solid var(--border);border-radius:12px;
+    padding:4px;margin-bottom:14px;overflow-x:auto;
+  }
+  .tabs button{
+    flex:1;min-width:84px;min-height:38px;padding:8px 10px;
+    font:inherit;font-size:13px;font-weight:700;border:0;border-radius:9px;
+    background:transparent;color:var(--muted);cursor:pointer;
+  }
+  .tabs button.on{background:var(--surface);color:var(--primary)}
+
+  /* ── الكارت والـ QR ────────────────────────────── */
+  .qrbox{display:flex;gap:14px;align-items:center}
+  .qrbox .qr{
+    width:118px;height:118px;flex:none;padding:8px;border-radius:12px;
+    background:#fff;border:1px solid var(--border);
+  }
+  .qrbox .qr img{width:100%;height:100%;display:block}
+  .qrbox .txt{flex:1;min-width:0;font-size:12.5px;color:var(--muted)}
+  .acts{display:flex;gap:10px;margin-top:14px}
+  .acts button{flex:1;font-size:14px;min-height:46px;padding:11px 8px}
+  .acts .wa{background:#25d366}
+
+  /* ── قوايم ─────────────────────────────────────── */
+  .row{
+    display:flex;align-items:center;gap:11px;padding:11px 0;
+    border-bottom:1px solid var(--border);
+  }
+  .row:last-child{border-bottom:0}
+  .row .main{flex:1;min-width:0}
+  .row .t{font-size:13.5px;font-weight:700}
+  .row .s{font-size:11.5px;color:var(--muted)}
+  .row .side{text-align:left;direction:ltr;flex:none}
+  .row .side .b{font-size:14px;font-weight:800}
+  .row .side .s{font-size:11px;color:var(--muted)}
+
+  .pill{
+    font-size:11px;font-weight:700;padding:2px 8px;border-radius:6px;flex:none;
+  }
+  .pill.ok{background:var(--success-weak);color:var(--success)}
+  .pill.late{background:var(--warn-weak);color:var(--warn)}
+  .pill.bad{background:var(--danger-weak);color:var(--danger)}
+  .pill.mute{background:var(--surface2);color:var(--muted)}
+
+  .bar{height:6px;border-radius:4px;background:var(--surface2);overflow:hidden;margin-top:5px}
+  .bar i{display:block;height:100%;border-radius:4px;background:var(--primary)}
+  .bar i.ok{background:var(--success)}
+  .bar i.bad{background:var(--danger)}
+
+  .empty{text-align:center;padding:26px 10px;color:var(--muted);font-size:13.5px}
+
+  /* بيانات مقفولة */
+  .ro{
+    display:flex;justify-content:space-between;align-items:center;gap:12px;
+    padding:12px 13px;background:var(--surface2);
+    border:1px dashed var(--border);border-radius:10px;margin-bottom:8px;
+  }
+  .ro .k{font-size:13px;color:var(--muted);font-weight:600}
+  .ro .v{font-size:14px;font-weight:700}
+  .ro .v.ltr{direction:ltr}
+  .locknote{font-size:12px;color:var(--muted);margin:10px 0 0}
+
+  .courses{display:flex;flex-direction:column;gap:8px}
+  .course{
+    display:flex;align-items:center;gap:11px;padding:12px 13px;
+    border:1px solid var(--border);border-radius:11px;
+    background:var(--surface2);cursor:pointer;min-height:48px;
+  }
+  .course input{width:20px;height:20px;accent-color:var(--primary);flex:none;margin:0}
+  .course .nm{flex:1;font-size:14px;font-weight:600}
+  .course .pr{font-size:13px;color:var(--muted);direction:ltr}
+  .course.on{border-color:var(--primary);background:var(--primary-weak)}
+  .course.lock{opacity:.75;cursor:not-allowed;border-style:dashed}
+  .course .tag{font-size:11px;color:var(--muted)}
+
+  button{
+    width:100%;padding:15px;font:inherit;font-size:16px;font-weight:700;
+    color:#fff;background:var(--primary);border:0;border-radius:12px;
+    cursor:pointer;min-height:52px;
+  }
+  button[disabled]{opacity:.55;cursor:default}
+  button.ghost{background:transparent;color:var(--muted);border:1px solid var(--border);margin-top:10px}
+
+  .banner{border-radius:11px;padding:13px 15px;font-size:14px;font-weight:600;margin-bottom:14px;display:none}
+  .banner.show{display:block}
+  .banner.bad{background:var(--danger-weak);color:var(--danger)}
+  .banner.good{background:var(--success-weak);color:var(--success)}
+
+  .state{text-align:center;padding:56px 20px}
+  .state .ico{font-size:44px;line-height:1}
+  .state p{color:var(--muted);font-size:14px;margin:10px 0 0}
+  [hidden]{display:none !important}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- ══ دخول ══ -->
+  <form id="login">
+    <header>
+      <h1>بياناتي</h1>
+      <p>ادخل بالكود بتاعك ورقم موبايلك</p>
+    </header>
+
+    <div id="loginBanner" class="banner bad"></div>
+
+    <div class="card">
+      <div class="field">
+        <label for="code">الكود</label>
+        <input id="code" class="ltr" type="text" inputmode="numeric"
+               autocomplete="off" maxlength="12" placeholder="الكود اللي في الكارت">
+        <div class="err" id="e_code"></div>
+      </div>
+
+      <div class="field">
+        <label for="lphone">رقم موبايلك</label>
+        <input id="lphone" class="ltr" type="tel" inputmode="numeric"
+               autocomplete="tel" maxlength="11" placeholder="01xxxxxxxxx">
+        <div class="err" id="e_lphone"></div>
+      </div>
+    </div>
+
+    <button type="submit" id="loginBtn">دخول</button>
+  </form>
+
+  <!-- ══ تحميل ══ -->
+  <div id="loading" class="state" hidden>
+    <div class="ico">⏳</div>
+    <p>بنحمّل بياناتك…</p>
+  </div>
+
+  <!-- ══ البروفايل ══ -->
+  <div id="app" hidden>
+
+    <div class="profile">
+      <div class="avatar" id="avatar"></div>
+      <div class="who">
+        <div class="nm" id="pName"></div>
+        <div class="br" id="pBranch"></div>
+        <button type="button" class="codechip" id="codeChip">
+          <span id="pCode"></span> 📋
+        </button>
+      </div>
+    </div>
+
+    <div id="banner" class="banner"></div>
+
+    <div class="stats">
+      <div class="stat"><div class="v" id="sAtt">0</div><div class="k">حضور</div></div>
+      <div class="stat"><div class="v" id="sAvg">—</div><div class="k">متوسط الدرجات</div></div>
+      <div class="stat"><div class="v" id="sCourses">0</div><div class="k">مواد</div></div>
+    </div>
+
+    <div class="wallet" id="wallet" hidden>
+      <div class="ico">👛</div>
+      <div class="body">
+        <div class="k">رصيد المحفظة</div>
+        <div class="amt"><span id="walletAmount">0</span> <span class="cur">جنيه</span></div>
+        <div class="hint" id="walletHint"></div>
+      </div>
+    </div>
+
+    <div class="tabs">
+      <button type="button" data-tab="card" class="on">كارتي</button>
+      <button type="button" data-tab="att">الحضور</button>
+      <button type="button" data-tab="exams">الامتحانات</button>
+      <button type="button" data-tab="pay">المدفوعات</button>
+      <button type="button" data-tab="edit">تعديل</button>
+    </div>
+
+    <!-- ── كارتي ── -->
+    <section id="t_card">
+      <div class="card">
+        <h2>كود الحضور</h2>
+        <div class="qrbox">
+          <div class="qr" id="qrWrap"><img id="qrImg" alt="QR"></div>
+          <div class="txt">
+            ورّي الكود ده عند الباب والموظف يمسحه — أسرع من البحث
+            بالاسم ومفيش غلط في الطالب.
+          </div>
+        </div>
+        <div class="acts">
+          <button type="button" id="saveCardBtn">احفظ كارتي</button>
+          <button type="button" class="wa" id="waBtn">ابعتها لنفسي</button>
+        </div>
+        <button type="button" class="ghost" id="newQrBtn">غيّر الكود</button>
+        <p class="locknote">
+          لو حد تاني معاه صورة كارتك، غيّر الكود — القديم بيبطل فوراً
+          وبيتعمل واحد جديد بـ QR جديد.
+        </p>
+      </div>
+
+      <div class="card">
+        <h2>موادي</h2>
+        <div id="myCourses"></div>
+      </div>
+    </section>
+
+    <!-- ── الحضور ── -->
+    <section id="t_att" hidden>
+      <div class="card">
+        <h2>آخر حضور</h2>
+        <div id="attList"></div>
+      </div>
+    </section>
+
+    <!-- ── الامتحانات ── -->
+    <section id="t_exams" hidden>
+      <div class="card">
+        <h2>الامتحانات</h2>
+        <div id="examList"></div>
+      </div>
+    </section>
+
+    <!-- ── المدفوعات ── -->
+    <section id="t_pay" hidden>
+      <div class="card">
+        <h2>آخر المدفوعات</h2>
+        <div id="payList"></div>
+      </div>
+    </section>
+
+    <!-- ── تعديل ── -->
+    <section id="t_edit" hidden>
+      <form id="editForm">
+        <div class="card">
+          <h2>بيانات مقفولة</h2>
+          <div class="ro"><span class="k">الاسم</span><span class="v" id="vName"></span></div>
+          <div class="ro"><span class="k">رقم الموبايل</span><span class="v ltr" id="vPhone"></span></div>
+          <div class="ro"><span class="k">الكود</span><span class="v ltr" id="vCode"></span></div>
+          <p class="locknote">
+            دول مايتغيّروش من هنا. الاسم مطبوع في الكشوف والدرجات، ورقم
+            الموبايل هو اللي بتدخل بيه. لو فيهم غلط كلّم موظف الاستقبال.
+          </p>
+        </div>
+
+        <div class="card">
+          <h2>بيانات تقدر تعدّلها</h2>
+          <div class="field">
+            <label for="parent">رقم ولي الأمر</label>
+            <input id="parent" class="ltr" type="tel" inputmode="numeric"
+                   maxlength="11" placeholder="01xxxxxxxxx">
+            <div class="err" id="e_parent"></div>
+          </div>
+          <div class="field">
+            <label for="alt">رقم احتياطي <span class="hint">(اختياري)</span></label>
+            <input id="alt" class="ltr" type="tel" inputmode="numeric"
+                   maxlength="11" placeholder="01xxxxxxxxx">
+            <div class="err" id="e_alt"></div>
+          </div>
+        </div>
+
+        <div class="card" id="semesterCard" hidden>
+          <h2>الصف الدراسي</h2>
+          <div class="field"><select id="semester"></select></div>
+          <p class="locknote" id="semesterLock" hidden>
+            تغيير الصف بيتطبّق على المواد اللي لسه مدفعتش فيها. المواد
+            المدفوعة بتفضل على صفها القديم عشان الحسابات متتلخبطش.
+          </p>
+        </div>
+
+        <div class="card" id="coursesCard">
+          <h2>اشتراكاتي</h2>
+          <div class="courses" id="courses"></div>
+          <p class="locknote" id="lockHint" hidden>
+            المواد اللي عليها مدفوعات مقفولة — كلّم موظف الاستقبال لو
+            عايز تلغيها.
+          </p>
+        </div>
+
+        <button type="submit" id="saveBtn">حفظ التعديلات</button>
+      </form>
+    </section>
+
+    <button type="button" class="ghost" id="outBtn">خروج</button>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var $ = function (id) { return document.getElementById(id); };
+  var KEY = "portal_token";
+  var data = null;
+
+  // ── أدوات ──────────────────────────────────────────────
+  function toLatin(s) {
+    return String(s || "").replace(/[٠-٩۰-۹]/g, function (d) {
+      var c = d.charCodeAt(0);
+      return String(c >= 0x06F0 ? c - 0x06F0 : c - 0x0660);
+    });
+  }
+  function digits(v) { return toLatin(v).replace(/[^\d]/g, ""); }
+  function validPhone(v) { return /^01[0125]\d{8}$/.test(v); }
+  function money(v) {
+    var n = Math.round(Number(v || 0) * 100) / 100;
+    return String(n);
+  }
+  function fmtDate(s) {
+    var d = new Date(s);
+    if (isNaN(d.getTime())) return "—";
+    return d.getDate() + "/" + (d.getMonth() + 1) + "/" + d.getFullYear();
+  }
+  function el(tag, cls, txt) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (txt != null) e.textContent = txt;
+    return e;
+  }
+
+  function showErr(id, msg) {
+    var box = $("e_" + id), input = $(id);
+    box.textContent = msg || "";
+    box.classList.toggle("show", !!msg);
+    if (input) {
+      if (msg) input.setAttribute("aria-invalid", "true");
+      else input.removeAttribute("aria-invalid");
+    }
+  }
+
+  function banner(elId, msg, good) {
+    var b = $(elId);
+    b.textContent = msg;
+    b.className = "banner " + (good ? "good" : "bad") + (msg ? " show" : "");
+    if (msg) window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  // ⚠ sessionStorage مش localStorage — التوكن بيموت مع قفل التاب.
+  //   موبايل الطالب ممكن يبقى في إيد حد تاني بعد دقيقة.
+  function getToken() { try { return sessionStorage.getItem(KEY); } catch (e) { return null; } }
+  function setToken(t) { try { sessionStorage.setItem(KEY, t); } catch (e) {} }
+  function clearToken() { try { sessionStorage.removeItem(KEY); } catch (e) {} }
+
+  ["lphone", "parent", "alt"].forEach(function (id) {
+    var e = $(id);
+    if (!e) return;
+    e.addEventListener("input", function () {
+      var c = digits(this.value).slice(0, 11);
+      if (c !== this.value) this.value = c;
+      showErr(id, "");
+    });
+  });
+  $("code").addEventListener("input", function () {
+    var c = digits(this.value).slice(0, 12);
+    if (c !== this.value) this.value = c;
+    showErr("code", "");
+  });
+
+  // ── دخول ───────────────────────────────────────────────
+  $("login").addEventListener("submit", function (ev) {
+    ev.preventDefault();
+    banner("loginBanner", "");
+
+    var code = digits($("code").value);
+    var phone = digits($("lphone").value);
+    var bad = false;
+
+    if (code.length < 4) { showErr("code", "اكتب الكود اللي في الكارت."); bad = true; }
+    if (!validPhone(phone)) { showErr("lphone", "رقم مش مظبوط."); bad = true; }
+    if (bad) return;
+
+    var btn = $("loginBtn");
+    btn.disabled = true;
+    btn.textContent = "بندخل…";
+
+    fetch("/api/portal/session", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({ portal_code: code, phone: phone })
+    })
+      .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+      .then(function (res) {
+        btn.disabled = false;
+        btn.textContent = "دخول";
+        if (!res.ok || !res.j.success) {
+          return banner("loginBanner", res.j.message || "مش قادرين ندخّلك.");
+        }
+        setToken(res.j.data.token);
+        $("login").hidden = true;
+        load();
+      })
+      .catch(function () {
+        btn.disabled = false;
+        btn.textContent = "دخول";
+        banner("loginBanner", "مش قادرين نوصل للسيرفر.");
+      });
+  });
+
+  // ── تحميل ──────────────────────────────────────────────
+  function load() {
+    $("loading").hidden = false;
+
+    fetch("/api/portal/me", {
+      headers: { Accept: "application/json", Authorization: "Bearer " + getToken() }
+    })
+      .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+      .then(function (res) {
+        $("loading").hidden = true;
+        if (!res.ok || !res.j.success) return signOut(res.j.message);
+        data = res.j.data;
+        fill();
+        $("app").hidden = false;
+      })
+      .catch(function () {
+        $("loading").hidden = true;
+        signOut("مش قادرين نوصل للسيرفر.");
+      });
+  }
+
+  // ── رسم البروفايل ──────────────────────────────────────
+  function fill() {
+    // الرأس
+    $("pName").textContent = data.name || "";
+    $("pBranch").textContent =
+      [data.center_name, data.branch_name ? "فرع " + data.branch_name : ""]
+        .filter(Boolean).join(" · ");
+    $("pCode").textContent = data.portal_code || "";
+
+    var av = $("avatar");
+    av.innerHTML = "";
+    if (data.photo) {
+      var im = new Image();
+      im.src = data.photo;
+      im.alt = "";
+      av.appendChild(im);
+    } else {
+      av.textContent = (data.name || "؟").charAt(0);
+    }
+
+    // الأرقام السريعة
+    var att = data.attendance || {};
+    var ex = data.exams || {};
+    $("sAtt").textContent = att.attended || 0;
+    $("sAvg").textContent =
+      ex.average_percent == null ? "—" : ex.average_percent + "%";
+    $("sCourses").textContent = (data.my_courses || []).length;
+
+    // المحفظة
+    if (data.wallet_enabled) {
+      var bal = Number(data.wallet_balance || 0);
+      var empty = bal <= 0;
+      $("walletAmount").textContent = money(bal);
+      $("walletHint").textContent = empty
+        ? "رصيدك خلص — اشحن من الاستقبال قبل الحصة الجاية."
+        : "الشحن من داخل السنتر بس.";
+      $("wallet").className = "wallet" + (empty ? " empty" : "");
+      $("wallet").hidden = false;
+    } else {
+      $("wallet").hidden = true;
+    }
+
+    // الـ QR
+    if (data.qr_code) {
+      $("qrImg").src = data.qr_code;
+      $("qrWrap").hidden = false;
+    } else {
+      $("qrWrap").hidden = true;
+    }
+
+    renderMyCourses();
+    renderAttendance();
+    renderExams();
+    renderPayments();
+    fillEditForm();
+  }
+
+  function renderMyCourses() {
+    var box = $("myCourses");
+    box.innerHTML = "";
+    var list = data.my_courses || [];
+    if (!list.length) {
+      box.appendChild(el("div", "empty", "لسه مامشتركش في مادة."));
+      return;
+    }
+    list.forEach(function (c) {
+      var row = el("div", "row");
+      var main = el("div", "main");
+      main.appendChild(el("div", "t", c.name));
+      row.appendChild(main);
+      var paid = c.status !== "unpaid";
+      row.appendChild(el("span", "pill " + (paid ? "ok" : "mute"),
+        paid ? "مدفوعة" : "لسه"));
+      box.appendChild(row);
+    });
+  }
+
+  var ATT = { present: ["ok", "حاضر"], late: ["late", "متأخر"], absent: ["bad", "غايب"] };
+
+  function renderAttendance() {
+    var box = $("attList");
+    box.innerHTML = "";
+    var list = (data.attendance || {}).recent || [];
+    if (!list.length) {
+      box.appendChild(el("div", "empty", "مفيش حضور مسجّل لسه."));
+      return;
+    }
+    list.forEach(function (a) {
+      var row = el("div", "row");
+      var main = el("div", "main");
+      main.appendChild(el("div", "t", a.course_name || "—"));
+      main.appendChild(el("div", "s",
+        fmtDate(a.day) + (a.session_no > 1 ? " · الحصة " + a.session_no : "")));
+      row.appendChild(main);
+      var st = ATT[a.status] || ["mute", a.status];
+      row.appendChild(el("span", "pill " + st[0], st[1]));
+      box.appendChild(row);
+    });
+  }
+
+  function renderExams() {
+    var box = $("examList");
+    box.innerHTML = "";
+    var ex = data.exams || {};
+    var list = ex.items || [];
+    if (!list.length) {
+      box.appendChild(el("div", "empty", "مفيش امتحانات لسه."));
+      return;
+    }
+
+    list.forEach(function (g) {
+      var row = el("div", "row");
+      var main = el("div", "main");
+      main.appendChild(el("div", "t", g.title || "امتحان"));
+      main.appendChild(el("div", "s",
+        [g.course_name, fmtDate(g.date)].filter(Boolean).join(" · ")));
+
+      if (g.status === "graded" && g.grade != null) {
+        var total = Number(g.total) || 100;
+        var pct = Math.max(0, Math.min(100, (Number(g.grade) / total) * 100));
+        // ⚠ النجاح بيتحدد من `pass_marks` لو الامتحان محدّدها،
+        //   مش من نسبة ثابتة — كل امتحان ليه حده
+        var passed = g.pass == null ? pct >= 50 : Number(g.grade) >= Number(g.pass);
+        var bar = el("div", "bar");
+        var fill = el("i", passed ? "ok" : "bad");
+        fill.style.width = pct.toFixed(0) + "%";
+        bar.appendChild(fill);
+        main.appendChild(bar);
+        row.appendChild(main);
+
+        var side = el("div", "side");
+        side.appendChild(el("div", "b", g.grade + " / " + total));
+        side.appendChild(el("div", "s", pct.toFixed(0) + "%"));
+        row.appendChild(side);
+      } else {
+        row.appendChild(main);
+        row.appendChild(el("span", "pill " + (g.status === "absent" ? "bad" : "mute"),
+          g.status === "absent" ? "غايب" : "لسه ماتصححش"));
+      }
+      box.appendChild(row);
+    });
+
+    if (ex.average_percent != null) {
+      var f = el("div", "locknote",
+        "المتوسط " + ex.average_percent + "% — محسوب من الامتحانات المصحّحة بس."
+        + " الغياب مش محسوب صفر.");
+      box.appendChild(f);
+    }
+  }
+
+  var KIND = {
+    fee: "رسوم",
+    wallet_topup: "شحن محفظة",
+    attendance: "حضور",
+    registration: "قبول",
+    other: "أخرى"
+  };
+
+  function renderPayments() {
+    var box = $("payList");
+    box.innerHTML = "";
+    var list = data.payments || [];
+    if (!list.length) {
+      box.appendChild(el("div", "empty", "مفيش مدفوعات مسجّلة."));
+      return;
+    }
+    list.forEach(function (p) {
+      var row = el("div", "row");
+      var main = el("div", "main");
+      main.appendChild(el("div", "t", KIND[p.kind] || "دفعة"));
+      main.appendChild(el("div", "s",
+        fmtDate(p.paid_at) + (p.receipt ? " · إيصال " + p.receipt : "")));
+      row.appendChild(main);
+      var side = el("div", "side");
+      side.appendChild(el("div", "b", money(p.amount) + " ج"));
+      row.appendChild(side);
+      box.appendChild(row);
+    });
+  }
+
+  function fillEditForm() {
+    $("vName").textContent = data.name || "";
+    $("vPhone").textContent = data.phone || "";
+    $("vCode").textContent = data.portal_code || "";
+    $("parent").value = data.parent_phone || "";
+    $("alt").value = data.alt_phone || "";
+
+    var sems = data.branch_semesters || [];
+    if (sems.length) {
+      var ssel = $("semester");
+      ssel.innerHTML = "";
+      if (data.semester_id == null) {
+        var none = document.createElement("option");
+        none.value = "";
+        none.textContent = "— اختار الصف —";
+        ssel.appendChild(none);
+      }
+      sems.forEach(function (sm) {
+        var o = document.createElement("option");
+        o.value = sm.id;
+        o.textContent = sm.label || sm.name || "";
+        if (sm.id === data.semester_id) o.selected = true;
+        ssel.appendChild(o);
+      });
+      $("semesterCard").hidden = false;
+      $("semesterLock").hidden = (data.locked_course_ids || []).length === 0;
+    }
+
+    var mine = data.my_course_ids || [];
+    var locked = data.locked_course_ids || [];
+    var all = data.branch_courses || [];
+    if (!all.length) { $("coursesCard").hidden = true; return; }
+
+    var box = $("courses");
+    box.innerHTML = "";
+    var anyLocked = false;
+
+    all.forEach(function (c) {
+      var isMine = mine.indexOf(c.id) !== -1;
+      var isLocked = locked.indexOf(c.id) !== -1;
+      if (isLocked) anyLocked = true;
+
+      var row = document.createElement("label");
+      row.className = "course" + (isMine ? " on" : "") + (isLocked ? " lock" : "");
+
+      var cb = document.createElement("input");
+      cb.type = "checkbox";
+      cb.value = c.id;
+      cb.checked = isMine;
+      cb.disabled = isLocked;
+
+      var nm = el("span", "nm", c.name);
+
+      var right = isLocked
+        ? el("span", "tag", "مدفوعة")
+        : el("span", "pr", c.price > 0 ? c.price + " ج" : "");
+
+      cb.addEventListener("change", function () {
+        row.classList.toggle("on", cb.checked);
+      });
+
+      row.appendChild(cb);
+      row.appendChild(nm);
+      row.appendChild(right);
+      box.appendChild(row);
+    });
+
+    $("lockHint").hidden = !anyLocked;
+  }
+
+  // ── التبويبات ──────────────────────────────────────────
+  var TABS = ["card", "att", "exams", "pay", "edit"];
+  Array.prototype.slice.call(document.querySelectorAll(".tabs button"))
+    .forEach(function (b) {
+      b.addEventListener("click", function () {
+        var t = b.getAttribute("data-tab");
+        TABS.forEach(function (k) { $("t_" + k).hidden = k !== t; });
+        Array.prototype.slice.call(document.querySelectorAll(".tabs button"))
+          .forEach(function (x) { x.classList.toggle("on", x === b); });
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      });
+    });
+
+  // ── نسخ الكود ──────────────────────────────────────────
+  $("codeChip").addEventListener("click", function () {
+    var code = data && data.portal_code ? data.portal_code : "";
+    if (!code) return;
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(code).then(function () {
+        banner("banner", "اتنسخ الكود ✅", true);
+      });
+    }
+  });
+
+  // ── بطاقة PNG ──────────────────────────────────────────
+  //
+  // بتترسم على canvas عشان الطالب يحفظها في معرض الصور —
+  // يوريها عند الباب حتى لو مفيش نت.
+  function buildCard() {
+    return new Promise(function (resolve, reject) {
+      var W = 720, H = 1080;
+      var cv = document.createElement("canvas");
+      cv.width = W; cv.height = H;
+      var g = cv.getContext("2d");
+
+      g.fillStyle = "#ffffff";
+      g.fillRect(0, 0, W, H);
+
+      g.fillStyle = "#4f46e5";
+      g.fillRect(0, 0, W, 196);
+
+      g.direction = "rtl";
+      g.textAlign = "center";
+
+      g.fillStyle = "#ffffff";
+      g.font = "800 42px Cairo, sans-serif";
+      g.fillText(data.center_name || "", W / 2, 86);
+      g.font = "400 28px Cairo, sans-serif";
+      g.fillText(data.branch_name ? "فرع " + data.branch_name : "", W / 2, 138);
+
+      g.fillStyle = "#161821";
+      g.font = "800 46px Cairo, sans-serif";
+      g.fillText(data.name || "", W / 2, 278);
+
+      g.fillStyle = "#6b7280";
+      g.font = "600 24px Cairo, sans-serif";
+      g.fillText("كود الحضور", W / 2, 330);
+
+      g.fillStyle = "#161821";
+      g.font = "800 58px monospace";
+      g.fillText(data.portal_code || "", W / 2, 398);
+
+      var finish = function () {
+        g.fillStyle = "#6b7280";
+        g.font = "400 24px Cairo, sans-serif";
+        g.fillText("ورّي الكارت ده عند الباب", W / 2, H - 56);
+        cv.toBlob(function (b) {
+          b ? resolve(b) : reject(new Error("no blob"));
+        }, "image/png");
+      };
+
+      if (data.qr_code) {
+        var img = new Image();
+        img.onload = function () {
+          var s = 430;
+          g.drawImage(img, (W - s) / 2, 442, s, s);
+          finish();
+        };
+        img.onerror = finish;
+        img.src = data.qr_code;
+      } else {
+        finish();
+      }
+    });
+  }
+
+  // ── تغيير الكود والـ QR ────────────────────────────────
+  //
+  // ⚠ ده بيغيّر `portal_code` نفسه مش الصورة بس — الماسح عند الباب
+  //   بيقرا الكود ده، فأي كارت مطبوع أو محفوظ بيبطل. عشان كده فيه
+  //   تأكيد. الجلسة الحالية مابتقفلش، التوكن مربوط بالطالب مش بالكود.
+  $("newQrBtn").addEventListener("click", function () {
+    if (!window.confirm(
+      "هيتعمل كود جديد، والكارت القديم — المطبوع أو المحفوظ — هيبطل.\nتمام؟"
+    )) return;
+
+    var btn = this;
+    btn.disabled = true;
+    btn.textContent = "بنغيّر…";
+
+    fetch("/api/portal/me/qr", {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        Authorization: "Bearer " + getToken()
+      }
+    })
+      .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+      .then(function (res) {
+        btn.disabled = false;
+        btn.textContent = "غيّر الكود";
+
+        if (res.j.code === "SESSION_EXPIRED" || res.j.code === "NO_SESSION") {
+          return signOut(res.j.message);
+        }
+        if (!res.ok || !res.j.success) {
+          return banner("banner", res.j.message || "مش قادرين نغيّر الكود.");
+        }
+
+        // ⚠ بنحدّث الأماكن بإيدنا مش بـ `fill()` — `fill()` بيعيد بناء
+        //   فورم التعديل كمان، فأي حاجة الطالب كاتبها هناك ولسه
+        //   محفظهاش كانت هتتمسح
+        data.portal_code = res.j.data.portal_code;
+        data.qr_code = res.j.data.qr_code;
+        $("pCode").textContent = data.portal_code;
+        $("vCode").textContent = data.portal_code;
+        $("qrImg").src = data.qr_code;
+
+        banner("banner", "اتعمل كود جديد ✅ احفظ الكارت من تاني.", true);
+      })
+      .catch(function () {
+        btn.disabled = false;
+        btn.textContent = "غيّر الكود";
+        banner("banner", "مش قادرين نوصل للسيرفر.");
+      });
+  });
+
+  $("saveCardBtn").addEventListener("click", function () {
+    var btn = this;
+    btn.disabled = true;
+    btn.textContent = "بنجهّز…";
+
+    // ⚠ بننتظر الخط يتحمّل — من غيرها الـ canvas بيرسم بخط
+    //   احتياطي والعربي بيطلع متكسّر
+    (document.fonts ? document.fonts.ready : Promise.resolve())
+      .then(buildCard)
+      .then(function (blob) {
+        var name = "card-" + (data.portal_code || "student") + ".png";
+        var file = new File([blob], name, { type: "image/png" });
+
+        // على الموبايل المشاركة أحسن — بتوديها للمعرض أو الواتس
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          return navigator.share({ files: [file], title: data.name || "كارتي" });
+        }
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement("a");
+        a.href = url;
+        a.download = name;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(function () { URL.revokeObjectURL(url); }, 2000);
+      })
+      .catch(function () { banner("banner", "ماقدرناش نجهّز الكارت."); })
+      .then(function () {
+        btn.disabled = false;
+        btn.textContent = "احفظ كارتي";
+      });
+  });
+
+  // ── واتساب لنفسه ───────────────────────────────────────
+  $("waBtn").addEventListener("click", function () {
+    var p = digits(data.phone || "");
+    if (!p) return;
+    // 01xxxxxxxxx → 201xxxxxxxxx
+    var intl = p.charAt(0) === "0" ? "20" + p.slice(1) : p;
+
+    var txt = [
+      (data.center_name || "السنتر"),
+      "الاسم: " + (data.name || ""),
+      "كود الحضور: " + (data.portal_code || ""),
+      "",
+      "بياناتي: " + location.origin + location.pathname
+    ].join("\n");
+
+    window.open(
+      "https://wa.me/" + intl + "?text=" + encodeURIComponent(txt),
+      "_blank",
+      "noopener"
+    );
+  });
+
+  // ── حفظ التعديلات ──────────────────────────────────────
+  function picked() {
+    // ⚠ الـ checkbox المقفول بيرجّع مش متشيّك في بعض المتصفحات
+    //   لو اتبعت من غير ما نضيفه، فبنضيف المقفولة بإيدنا — وإلا
+    //   الحفظ بيبان كأنه بيلغي اشتراك مدفوع
+    var out = (data.locked_course_ids || []).slice();
+    Array.prototype.slice
+      .call(document.querySelectorAll("#courses input:checked"))
+      .forEach(function (i) {
+        var id = Number(i.value);
+        if (out.indexOf(id) === -1) out.push(id);
+      });
+    return out;
+  }
+
+  $("editForm").addEventListener("submit", function (ev) {
+    ev.preventDefault();
+    banner("banner", "");
+
+    var parent = digits($("parent").value);
+    var alt = digits($("alt").value);
+    var bad = false;
+
+    if (!validPhone(parent)) { showErr("parent", "رقم ولي الأمر مش مظبوط."); bad = true; }
+    if (alt && !validPhone(alt)) { showErr("alt", "الرقم الاحتياطي مش مظبوط."); bad = true; }
+    if (!bad && parent === (data.phone || "")) {
+      showErr("parent", "رقم ولي الأمر لازم يكون مختلف عن رقمك.");
+      bad = true;
+    }
+    if (bad) return;
+
+    var btn = $("saveBtn");
+    btn.disabled = true;
+    btn.textContent = "بنحفظ…";
+
+    fetch("/api/portal/me", {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        Authorization: "Bearer " + getToken()
+      },
+      body: JSON.stringify({
+        parent_phone: parent,
+        alt_phone: alt || null,
+        semester_id: Number($("semester").value || 0) || undefined,
+        course_ids: picked()
+      })
+    })
+      .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+      .then(function (res) {
+        btn.disabled = false;
+        btn.textContent = "حفظ التعديلات";
+
+        if (res.j.code === "SESSION_EXPIRED" || res.j.code === "NO_SESSION") {
+          return signOut(res.j.message);
+        }
+        if (!res.ok || !res.j.success) {
+          return banner("banner", res.j.message || "مش قادرين نحفظ.");
+        }
+        banner("banner", "اتحفظت ✅", true);
+        load();
+      })
+      .catch(function () {
+        btn.disabled = false;
+        btn.textContent = "حفظ التعديلات";
+        banner("banner", "مش قادرين نوصل للسيرفر.");
+      });
+  });
+
+  function signOut(msg) {
+    clearToken();
+    data = null;
+    $("app").hidden = true;
+    $("login").hidden = false;
+    if (msg) banner("loginBanner", msg);
+  }
+
+  $("outBtn").addEventListener("click", function () { signOut(""); });
+
+  if (getToken()) {
+    $("login").hidden = true;
+    load();
+  }
+})();
+</script>
+</body>
+</html>

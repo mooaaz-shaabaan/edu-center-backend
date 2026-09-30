@@ -12,6 +12,8 @@ datasource db {
 // ─────────────────────────────────────────
 
 enum Role {
+  super_admin
+  owner
   admin
   receptionist
 }
@@ -51,11 +53,101 @@ enum ConflictStatus {
   resolved
 }
 
+enum CoursePriceMode {
+  unified     // سعر موحّد
+  per_branch  // سعر لكل فرع
+}
+
+enum ExamType {
+  weekly   // أسبوعي
+  monthly  // شهري
+  term     // نصف الترم
+  final    // نهائي
+  other
+}
+
+enum GradeStatus {
+  graded  // حضر واتصححله
+  absent  // غاب
+  excused // غياب بعذر — بيتشال من كل الحسابات
+}
+
+enum RegistrationStatus {
+  pending   // مستني مراجعة الموظف
+  approved  // اتوافق عليه واتحوّل لطالب
+  rejected  // اترفض
+}
+
+/// ← جديد: نوع الدفعة.
+///
+/// كان التمييز بين شحن المحفظة والدفعة العادية بـ `notes = "شحن محفظة"` —
+/// نص عربي في عمود ملاحظات حر. أي تعديل في الصياغة كان بيكسر أي فلترة
+/// عليه، ومكانش فيه طريقة تعمل بيها سجل شحن محفظة أصلاً.
+enum PaymentKind {
+  fee           // دفعة عادية (مصاريف / قسط)
+  wallet_topup  // شحن محفظة
+  attendance    // كاش اتدفع وقت الحضور
+  registration  // دفعة وقت قبول طالب جديد
+  other
+}
+
+/// ← جديد: سبب جرد الدرج
+enum DrawerCountReason {
+  open      // استلام عند فتح الوردية
+  close     // عدّ عند قفل الوردية
+  handover  // تأكيد بعد ما حد تاني قفل والدرج لسه شغّال
+  manual    // جرد من المدير من غير وردية
+}
+
+// ─────────────────────────────────────────
+// 0. TENANT (السنتر) — الأب لكل حاجة
+// ─────────────────────────────────────────
+model Tenant {
+  id          Int      @id @default(autoincrement())
+  name        String   // اسم السنتر
+  slug        String   @unique // معرّف فريد (مثلاً "alnour") — مفيد للدومين/الروابط
+  email_domain String? @unique // الدومين بتاع الإيميلات — فريد عشان السناتر متتلخبطش
+  is_active   Boolean  @default(true) // لو السنتر اتوقف (مدفعش الاشتراك مثلاً)
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  // كل الجداول بترجع للسنتر
+  branches          Branch[]
+  users             User[]
+  shifts            Shift[]
+  rooms             Room[]
+  courses           Course[]
+  students          Student[]
+  semesters         Semester[]
+  enrollments       Enrollment[]
+  student_grades    StudentGrade[]
+  schedules         Schedule[]
+  schedule_conflicts ScheduleConflict[]
+  exams             Exam[]
+  attendances       Attendance[]
+  payments          Payment[]
+  installments      Installment[]
+  expenses          Expense[]
+  cash_transactions CashTransaction[]
+  notifications_log NotificationLog[]
+  course_schedules  CourseSchedule[]
+  course_branches   CourseBranch[]
+  user_branch_access UserBranchAccess[]
+  user_permissions   UserPermission[]
+  registration_links    RegistrationLink[]
+  student_registrations StudentRegistration[]
+  cash_drawers      CashDrawer[]   // ← جديد
+  drawer_counts     DrawerCount[]  // ← جديد
+
+  @@map("tenants")
+}
+
 // ─────────────────────────────────────────
 // 1. BRANCHES
 // ─────────────────────────────────────────
 model Branch {
   id          Int      @id @default(autoincrement())
+  tenant_id   Int      // ← الختم
   name        String
   address     String?
   phone       String?
@@ -64,35 +156,152 @@ model Branch {
   updated_at  DateTime @updatedAt
   sync_status SyncStatus @default(synced)
 
-  users       User[]
-  shifts      Shift[]
-  rooms       Room[]
-  students    Student[]
-  courses     Course[]
-  semesters   Semester[]
+  tenant            Tenant   @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  users             User[]
+  shifts            Shift[]
+  rooms             Room[]
+  exams             Exam[]
+  students          Student[]
+  courses           Course[]
+  semesters         Semester[]
+  attendances       Attendance[]
+  payments          Payment[]
+  cash_transactions CashTransaction[]
+  expenses          Expense[]
+  user_access       UserBranchAccess[]
+  course_branches   CourseBranch[]
+  course_schedules  CourseSchedule[]
+  registration_links    RegistrationLink[]
+  student_registrations StudentRegistration[]
+  cash_drawers      CashDrawer[]   // ← جديد
 
+  @@index([tenant_id])
   @@map("branches")
 }
 
 // ─────────────────────────────────────────
-// 2. USERS (Admin + Receptionist)
+// 2. USERS (Admin + receptionist)
 // ─────────────────────────────────────────
 model User {
   id          Int      @id @default(autoincrement())
+  tenant_id   Int?
   name        String
   email       String   @unique
   password    String
   role        Role     @default(receptionist)
   is_active   Boolean  @default(true)
   branch_id   Int?
+  created_by  Int?     // ← جديد: مين أنشأ الحساب (التسلسل الهرمي)
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+  sync_status SyncStatus @default(synced)
+  token_version  Int   @default(0)
+  last_seen_at DateTime? // ← آخر نبضة من البرنامج (فاضي = مفيش جلسة مفتوحة)
+  archived_at DateTime?
+
+  tenant      Tenant?  @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  branch      Branch?  @relation(fields: [branch_id], references: [id])
+  shifts      Shift[]  @relation("ShiftUser")
+  shifts_closed Shift[] @relation("ShiftClosedBy") // ← الشيفتات اللي قفلها
+  payments_created  Payment[]         @relation("PaymentCreatedBy")
+  cash_created      CashTransaction[] @relation("CashCreatedBy")
+  expenses_created  Expense[]         @relation("ExpenseCreatedBy")
+  refresh_tokens RefreshToken[]
+  branch_access    UserBranchAccess[] @relation("UserBranchAccess")
+  granted_access   UserBranchAccess[] @relation("AccessGrantedBy")
+  permissions      UserPermission[]   @relation("UserPermissions")
+  granted_perms    UserPermission[]   @relation("PermissionGrantedBy")
+  creator          User?              @relation("UserCreatedBy", fields: [created_by], references: [id], onDelete: SetNull)
+  created_users    User[]             @relation("UserCreatedBy")
+  reg_links_created      RegistrationLink[]    @relation("RegLinkCreatedBy")
+  registrations_reviewed StudentRegistration[] @relation("RegReviewedBy")
+  drawer_counts          DrawerCount[]         @relation("DrawerCountBy")      // ← جديد: الجرد اللي عمله
+  drawer_counts_related  DrawerCount[]         @relation("DrawerCountRelated") // ← جديد: جرد حصل بسبب قفله
+
+  @@index([tenant_id , archived_at])
+  @@index([created_by])
+  @@index([branch_id])          // ← FK من غير index
+  @@map("users")
+}
+
+// ─────────────────────────────────────────
+// 2.1 CASH DRAWERS (دروج الكاش) — جديد
+// ─────────────────────────────────────────
+/// الدرج كيان مستقل عن الوردية: الفرع ممكن يكون فيه درج أو أكتر،
+/// وأكتر من موظف ممكن يفتحوا ورديات على نفس الدرج في نفس الوقت.
+/// عشان كده العجز مش بتاع وردية — هو بتاع **الدرج في لحظة معيّنة**،
+/// وبيتسجّل في DrawerCount.
+model CashDrawer {
+  id        Int     @id @default(autoincrement())
+  tenant_id Int     // ← الختم
+  branch_id Int
+  name      String  // "الدرج الرئيسي" · "درج ٢"
+  is_active Boolean @default(true)
+
+  /// آخر رصيد اتأكد بالعدّ.
+  /// الرصيد المتوقع دلوقتي = ده + حركات الدرج اللي بعد last_counted_at
+  last_counted_balance Decimal  @default(0) @db.Decimal(10, 2)
+  last_counted_at      DateTime @default(now())
+
   created_at  DateTime @default(now())
   updated_at  DateTime @updatedAt
   sync_status SyncStatus @default(synced)
 
-  branch      Branch?  @relation(fields: [branch_id], references: [id])
-  shifts      Shift[]
+  tenant Tenant        @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  branch Branch        @relation(fields: [branch_id], references: [id], onDelete: Cascade)
+  shifts Shift[]
+  counts DrawerCount[]
 
-  @@map("users")
+  /// ← الحركات المالية بتشاور على الدرج **مباشرة**، مش عن طريق الوردية.
+  ///   الوردية بتقول "مين كان ماسك الدرج"، بس الدرج نفسه هو اللي
+  ///   الفلوس بتدخله وتخرج منه — والأونر والأدمن بيتعاملوا بفلوس
+  ///   من غير وردية أصلاً.
+  payments          Payment[]
+  expenses          Expense[]
+  cash_transactions CashTransaction[]
+
+  @@unique([branch_id, name], name: "uq_drawer_branch_name")
+  @@index([tenant_id])
+  @@index([tenant_id, branch_id, is_active])
+  @@map("cash_drawers")
+}
+
+// ─────────────────────────────────────────
+// 2.2 DRAWER COUNTS (جرد الدرج) — جديد
+// ─────────────────────────────────────────
+/// كل مرة حد يعدّ الدرج أو يأكد رصيده بيتسجّل صف هنا.
+/// ده السجل الوحيد اللي بيربط العجز بشخص ولحظة.
+model DrawerCount {
+  id        Int               @id @default(autoincrement())
+  tenant_id Int               // ← الختم
+  drawer_id Int
+  shift_id  Int?              // الوردية اللي الجرد اتعمل فيها (null = جرد مدير)
+  user_id   Int               // مين عدّ/أكّد
+  reason    DrawerCountReason
+
+  expected Decimal @db.Decimal(10, 2) // السيستم قال كام
+  counted  Decimal @db.Decimal(10, 2) // هو قال كام
+  variance Decimal @db.Decimal(10, 2) // counted − expected (سالب = عجز)
+
+  /// لو الجرد نتيجة قفل حد تاني — مين قفل
+  related_user_id Int?
+
+  note       String?
+  counted_at DateTime @default(now())
+  created_at DateTime @default(now())
+
+  tenant       Tenant     @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  drawer       CashDrawer @relation(fields: [drawer_id], references: [id], onDelete: Cascade)
+  shift        Shift?     @relation(fields: [shift_id], references: [id], onDelete: SetNull)
+  user         User       @relation("DrawerCountBy", fields: [user_id], references: [id])
+  related_user User?      @relation("DrawerCountRelated", fields: [related_user_id], references: [id], onDelete: SetNull)
+
+  @@index([tenant_id])
+  @@index([drawer_id, counted_at])   // ← "آخر جرد على الدرج ده"
+  @@index([shift_id])
+  @@index([user_id])
+  @@index([related_user_id])
+  @@map("drawer_counts")
 }
 
 // ─────────────────────────────────────────
@@ -100,25 +309,50 @@ model User {
 // ─────────────────────────────────────────
 model Shift {
   id           Int       @id @default(autoincrement())
+  tenant_id    Int       // ← الختم
   user_id      Int
   branch_id    Int
+
+  /// ← جديد: الوردية بتتفتح على درج. nullable عشان الورديات القديمة.
+  drawer_id    Int?
+
   opened_at    DateTime  @default(now())
   closed_at    DateTime?
+  closed_by    Int?      // ← مين قفل الشيفت (الموظف نفسه أو مدير)
   total_income Decimal   @default(0) @db.Decimal(10, 2)
   total_expenses Decimal @default(0) @db.Decimal(10, 2)
   net_total    Decimal   @default(0) @db.Decimal(10, 2)
+
+  /// ← جديد: اللي استلمه في الدرج وقت الفتح
+  opening_balance Decimal  @default(0) @db.Decimal(10, 2)
+  /// ← جديد: اللي عدّه في الدرج وقت القفل
+  closing_counted Decimal? @db.Decimal(10, 2)
+  /// ← جديد: الفرق وقت القفل (سالب = عجز)
+  variance        Decimal? @db.Decimal(10, 2)
+  /// ← جديد: حد تاني قفل على نفس الدرج — لازم يأكد الرصيد قبل ما يكمّل
+  needs_ack       Boolean  @default(false)
+
   notes        String?
   created_at   DateTime  @default(now())
   updated_at   DateTime  @updatedAt
   sync_status  SyncStatus @default(pending)
 
-  user         User      @relation(fields: [user_id], references: [id])
+  tenant       Tenant    @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  user         User      @relation("ShiftUser", fields: [user_id], references: [id])
+  closer       User?     @relation("ShiftClosedBy", fields: [closed_by], references: [id], onDelete: SetNull)
   branch       Branch    @relation(fields: [branch_id], references: [id])
+  drawer       CashDrawer? @relation(fields: [drawer_id], references: [id])
   attendance   Attendance[]
   payments     Payment[]
   expenses     Expense[]
   cash_transactions CashTransaction[]
+  drawer_counts DrawerCount[]
 
+  @@index([tenant_id])
+  @@index([tenant_id, branch_id, closed_at])   // ← "فيه شيفت مفتوح؟"
+  @@index([user_id])
+  @@index([closed_by])
+  @@index([drawer_id, closed_at])              // ← "مين لسه فاتح على الدرج ده؟"
   @@map("shifts")
 }
 
@@ -127,6 +361,7 @@ model Shift {
 // ─────────────────────────────────────────
 model Room {
   id          Int      @id @default(autoincrement())
+  tenant_id   Int      // ← الختم
   name        String
   capacity    Int?
   branch_id   Int
@@ -134,9 +369,12 @@ model Room {
   updated_at  DateTime @updatedAt
   sync_status SyncStatus @default(synced)
 
+  tenant      Tenant   @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
   branch      Branch   @relation(fields: [branch_id], references: [id])
   schedules   Schedule[]
 
+  @@index([tenant_id])
+  @@index([tenant_id, branch_id])
   @@map("rooms")
 }
 
@@ -144,24 +382,77 @@ model Room {
 // 5. COURSES (الكورسات)
 // ─────────────────────────────────────────
 model Course {
+  id            Int      @id @default(autoincrement())
+  tenant_id     Int
+  name          String
+  description   String?
+  price_mode    CoursePriceMode @default(unified) // ← موحّد ولا لكل فرع
+  is_active     Boolean  @default(true)
+  grace_minutes Int      @default(15)  // فترة السماح بالدقائق
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
+  sync_status   SyncStatus @default(synced)
+
+  // ── مؤقت: هيتشالوا بعد ما الباك إند يتحوّل على course_branches ──
+  price         Decimal  @db.Decimal(10, 2)
+  branch_id     Int
+
+  tenant           Tenant   @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  branch           Branch   @relation(fields: [branch_id], references: [id])
+  branches         CourseBranch[]    // ← الفروع المتاحة فيها المادة + سعرها
+  enrollments      Enrollment[]
+  attendance       Attendance[]
+  schedules        Schedule[]
+  exams            Exam[]
+  course_schedules CourseSchedule[]
+  registration_courses StudentRegistrationCourse[]
+
+  @@index([tenant_id])
+  @@index([tenant_id, branch_id])
+  @@map("courses")
+}
+
+// ─────────────────────────────────────────
+// 5.1 COURSE BRANCHES (المادة متاحة في أنهي فروع + سعرها في كل فرع)
+// ─────────────────────────────────────────
+model CourseBranch {
   id          Int      @id @default(autoincrement())
-  name        String
-  description String?
-  price       Decimal  @db.Decimal(10, 2)
+  tenant_id   Int      // ← الختم
+  course_id   Int
   branch_id   Int
-  is_active   Boolean  @default(true)
+  price       Decimal  @db.Decimal(10, 2) // في "الموحّد" نفس السعر بيتكتب لكل الفروع
   created_at  DateTime @default(now())
   updated_at  DateTime @updatedAt
   sync_status SyncStatus @default(synced)
 
-  branch      Branch   @relation(fields: [branch_id], references: [id])
-  enrollments Enrollment[]
-  attendance  Attendance[]
-  schedules   Schedule[]
-  exams       Exam[]
-  
+  tenant Tenant @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  course Course @relation(fields: [course_id], references: [id], onDelete: Cascade)
+  branch Branch @relation(fields: [branch_id], references: [id], onDelete: Cascade)
 
-  @@map("courses")
+  @@unique([course_id, branch_id], name: "uq_course_branch") // المادة تتضاف للفرع مرة واحدة
+  @@index([tenant_id, branch_id])   // ← "المواد المتاحة في الفرع ده"
+  @@index([branch_id])
+  @@map("course_branches")
+}
+
+model CourseSchedule {
+  id          Int      @id @default(autoincrement())
+  tenant_id   Int
+  course_id   Int
+  branch_id   Int?     // ← الميعاد ده في أنهي فرع (null = كل فروع المادة)
+  day_of_week Int      // 0=الأحد ... 6=السبت
+  start_time  String   // "15:00" بصيغة 24 ساعة
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  tenant Tenant  @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  course Course  @relation(fields: [course_id], references: [id], onDelete: Cascade)
+  branch Branch? @relation(fields: [branch_id], references: [id], onDelete: Cascade)
+
+  @@index([tenant_id])
+  @@index([course_id])
+  @@index([branch_id])
+  @@map("course_schedules")
 }
 
 // ─────────────────────────────────────────
@@ -169,6 +460,7 @@ model Course {
 // ─────────────────────────────────────────
 model Student {
   id              Int      @id @default(autoincrement())
+  tenant_id       Int      // ← الختم
   name            String
   phone           String
   parent_phone    String
@@ -183,6 +475,7 @@ model Student {
   shift_id        Int?
   photo           String?
 
+  tenant          Tenant   @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
   branch          Branch   @relation(fields: [branch_id], references: [id])
   wallet_enabled  Boolean @default(false)
   wallet_balance  Float   @default(0)
@@ -192,8 +485,13 @@ model Student {
   installments    Installment[]
   grades          StudentGrade[]
   notifications   NotificationLog[]
+  registrations StudentRegistration[]
 
+  @@index([tenant_id])
+  @@index([tenant_id, branch_id])              // ← أهم index في الملف
+  @@index([tenant_id, branch_id, is_active])   // ← قوايم الطلاب النشطين
   @@map("students")
+  @@unique([tenant_id, phone], name: "uq_student_phone")
 }
 
 // ─────────────────────────────────────────
@@ -201,6 +499,7 @@ model Student {
 // ─────────────────────────────────────────
 model Enrollment {
   id          Int      @id @default(autoincrement())
+  tenant_id   Int      // ← الختم
   student_id  Int?
   course_id   Int?
   start_date  DateTime
@@ -212,11 +511,16 @@ model Enrollment {
   shift_id    Int?
   semester_id Int?
 
+  tenant      Tenant   @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
   semester    Semester? @relation(fields: [semester_id], references: [id])
   student     Student? @relation(fields: [student_id], references: [id], onDelete: SetNull)
   course      Course? @relation(fields: [course_id], references: [id], onDelete: SetNull)
   installments Installment[]
 
+  @@index([tenant_id])
+  @@index([student_id])       // ← "كورسات الطالب ده"
+  @@index([course_id])        // ← "طلاب الكورس ده"
+  @@index([semester_id])
   @@map("enrollments")
 }
 
@@ -225,19 +529,32 @@ model Enrollment {
 // ─────────────────────────────────────────
 model StudentGrade {
   id          Int      @id @default(autoincrement())
+  tenant_id   Int      // ← الختم
   student_id  Int?
   exam_id     Int
+
+  /// null مسموحة بس مع status = absent/excused
   grade       Decimal? @db.Decimal(5, 2)
-  max_grade   Decimal  @default(100) @db.Decimal(5, 2)
+
+  /// ⚠ جديد — الغايب مايتحسبش صفر، بيتشال من المتوسط.
+  ///   من غير العمود ده مفيش فرق بين "غاب" و"لسه ماتصححش".
+  status      GradeStatus @default(graded)
+
+  // ⚠ max_grade اتشال — بقى Exam.total_marks
+
   notes       String?
   created_at  DateTime @default(now())
   updated_at  DateTime @updatedAt
   sync_status SyncStatus @default(pending)
   shift_id    Int?
 
+  tenant      Tenant   @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
   student     Student? @relation(fields: [student_id], references: [id], onDelete: SetNull)
-  exam        Exam     @relation(fields: [exam_id], references: [id])
+  exam        Exam     @relation(fields: [exam_id], references: [id], onDelete: Cascade)
 
+  @@unique([exam_id, student_id], name: "exam_id_student_id")
+  @@index([tenant_id])
+  @@index([student_id])   // الـ unique بيغطي exam_id بس (أول عمود)
   @@map("student_grades")
 }
 
@@ -246,6 +563,7 @@ model StudentGrade {
 // ─────────────────────────────────────────
 model Schedule {
   id          Int      @id @default(autoincrement())
+  tenant_id   Int      // ← الختم
   course_id   Int?
   room_id     Int
   day_of_week Int      // 0=Sunday ... 6=Saturday
@@ -257,11 +575,15 @@ model Schedule {
   sync_status SyncStatus @default(synced)
   shift_id    Int?
 
+  tenant      Tenant   @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
   course      Course? @relation(fields: [course_id], references: [id], onDelete: SetNull)
   room        Room     @relation(fields: [room_id], references: [id])
   conflicts_a ScheduleConflict[] @relation("ScheduleA")
   conflicts_b ScheduleConflict[] @relation("ScheduleB")
 
+  @@index([tenant_id])
+  @@index([course_id])
+  @@index([room_id, day_of_week])   // ← كشف التعارضات
   @@map("schedules")
 }
 
@@ -270,6 +592,7 @@ model Schedule {
 // ─────────────────────────────────────────
 model ScheduleConflict {
   id            Int      @id @default(autoincrement())
+  tenant_id     Int      // ← الختم
   schedule_a_id Int
   schedule_b_id Int
   status        ConflictStatus @default(unresolved)
@@ -278,9 +601,13 @@ model ScheduleConflict {
   sync_status   SyncStatus @default(pending)
   shift_id      Int?
 
+  tenant        Tenant   @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
   schedule_a    Schedule @relation("ScheduleA", fields: [schedule_a_id], references: [id])
   schedule_b    Schedule @relation("ScheduleB", fields: [schedule_b_id], references: [id])
 
+  @@index([tenant_id])
+  @@index([schedule_a_id])
+  @@index([schedule_b_id])
   @@map("schedule_conflicts")
 }
 
@@ -289,8 +616,27 @@ model ScheduleConflict {
 // ─────────────────────────────────────────
 model Exam {
   id          Int      @id @default(autoincrement())
+  tenant_id   Int      // ← الختم
   course_id   Int?
+
+  /// ⚠ جديد — الامتحان بيحصل في فرع.
+  ///   من غيره موظف فرع بيشوف امتحانات الفرع التاني،
+  ///   وده كان بيخالف كل الموديولات التانية.
+  branch_id   Int?
+
   title       String
+
+  /// ⚠ جديد — نوع الامتحان عشان التقارير تفرّق بين الأسبوعي والنهائي
+  type        ExamType @default(monthly)
+
+  /// ⚠ جديد — الدرجة العظمى مكانها هنا مش على كل درجة طالب.
+  ///   لما كانت على StudentGrade كان ينفع في نفس الامتحان
+  ///   أحمد من ١٠٠ ومحمد من ٥٠، وأي متوسط بعدها يبقى غلط.
+  total_marks Decimal  @default(100) @db.Decimal(5, 2)
+
+  /// درجة النجاح — اختيارية
+  pass_marks  Decimal? @db.Decimal(5, 2)
+
   exam_date   DateTime
   location    String?
   notes       String?
@@ -299,9 +645,15 @@ model Exam {
   sync_status SyncStatus @default(synced)
   shift_id    Int?
 
-  course      Course? @relation(fields: [course_id], references: [id], onDelete: SetNull)
+  tenant      Tenant   @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  course      Course?  @relation(fields: [course_id], references: [id], onDelete: SetNull)
+  branch      Branch?  @relation(fields: [branch_id], references: [id], onDelete: SetNull)
   grades      StudentGrade[]
 
+  @@index([tenant_id])
+  @@index([course_id])
+  @@index([branch_id])
+  @@index([tenant_id, exam_date])
   @@map("exams")
 }
 
@@ -310,25 +662,48 @@ model Exam {
 // ─────────────────────────────────────────
 model Attendance {
   id                Int      @id @default(autoincrement())
+  tenant_id         Int      // ← الختم
   student_id        Int?
-  student_name    String?
-  student_phone   String?
+  student_name      String?
+  student_phone     String?
   shift_id          Int?
-  course_id         Int?
+  course_id         Int
   date              DateTime @default(now())
+  attendance_day    DateTime @db.Date
+
+  /// ← جديد: الحصة رقم كام في اليوم (١ = الأولى).
+  ///   مادة ليها ميعاد واحد النهاردة → دايماً ١ → مرة واحدة بس.
+  ///   مادة ليها ميعادين → ١ و ٢ → ينفع مرتين، والتالتة بترفض.
+  ///   الرفض ده من الداتابيز مش من الكود، عشان موظفين اتنين
+  ///   بيسجّلوا في نفس اللحظة مايعدّوش الاتنين.
+  session_no        Int      @default(1)   // ←
+
   status            AttendanceStatus @default(present)
-  method            String   @default("manual") // "qr" or "manual"
+  method            String   @default("manual")
   notes             String?
   created_at        DateTime @default(now())
   updated_at        DateTime @updatedAt
   sync_status       SyncStatus @default(pending)
   payment_method    String?  @default("cash")
+  branch_id         Int
+  wallet_debited    Float?   @default(0)
+  cash_paid         Float?   @default(0)
 
+  tenant  Tenant   @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  student Student? @relation(fields: [student_id], references: [id], onDelete: SetNull)
+  shift   Shift?   @relation(fields: [shift_id], references: [id])
+  course  Course   @relation(fields: [course_id], references: [id])
+  branch  Branch   @relation(fields: [branch_id], references: [id])
 
-  student     Student? @relation(fields: [student_id], references: [id], onDelete: SetNull)
-  shift       Shift?   @relation(fields: [shift_id], references: [id])
-  course      Course? @relation(fields: [course_id], references: [id], onDelete: SetNull)
+  // ← اتزود session_no للمفتاح
+  @@unique([student_id, course_id, attendance_day, session_no], name: "uq_attendance_daily")
 
+  @@index([tenant_id])
+  @@index([branch_id])
+  // ← الجدول ده هو اللي هيكبر أسرع حاجة: صف لكل طالب لكل كورس لكل يوم
+  @@index([tenant_id, branch_id, attendance_day])
+  @@index([tenant_id, course_id, attendance_day])
+  @@index([shift_id])
   @@map("attendance")
 }
 
@@ -337,19 +712,44 @@ model Attendance {
 // ─────────────────────────────────────────
 model Payment {
   id           Int      @id @default(autoincrement())
+  tenant_id    Int      // ← الختم
   student_id   Int?
   shift_id     Int?
   amount       Decimal  @db.Decimal(10, 2)
-  receipt_number String @unique
+  receipt_number String  // ← الفرادة بقت لكل سنتر مش لكل النظام
+
+  /// ← نوع الدفعة. بديل `notes = "شحن محفظة"` — شوف PaymentKind فوق.
+  kind         PaymentKind @default(fee)
+
   notes        String?
   paid_at      DateTime @default(now())
   created_at   DateTime @default(now())
   updated_at   DateTime @updatedAt
   sync_status  SyncStatus @default(pending)
+  token_version Int @default(0)
+  branch_id      Int
+  created_by     Int?
 
+  /// ← الدرج اللي الفلوس دخلته. بييجي من وردية اللي قبض لو عنده
+  ///   وردية، وإلا بيتحدد من الفرع (أو يختاره لو الفرع فيه أكتر من درج).
+  drawer_id      Int?
+
+  tenant      Tenant   @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
   student     Student? @relation(fields: [student_id], references: [id], onDelete: SetNull)
   shift        Shift?   @relation(fields: [shift_id], references: [id])
+  drawer      CashDrawer? @relation(fields: [drawer_id], references: [id])
+  branch     Branch @relation(fields: [branch_id], references: [id])
+  created_by_user User? @relation("PaymentCreatedBy", fields: [created_by], references: [id])
 
+  @@unique([tenant_id, receipt_number], name: "uq_tenant_receipt")
+  @@index([tenant_id])
+  @@index([branch_id])
+  @@index([tenant_id, branch_id, paid_at])   // ← تقارير اليوم/الشهر
+  @@index([student_id])
+  @@index([shift_id])
+  @@index([created_by])
+  @@index([drawer_id, created_at])           // ← حسبة رصيد الدرج وكشف حركته
+  @@index([tenant_id, kind, paid_at])        // ← سجل شحن المحفظة
   @@map("payments")
 }
 
@@ -358,6 +758,7 @@ model Payment {
 // ─────────────────────────────────────────
 model Installment {
   id            Int      @id @default(autoincrement())
+  tenant_id     Int      // ← الختم
   student_id    Int?
   enrollment_id Int
   amount        Decimal  @db.Decimal(10, 2)
@@ -369,9 +770,14 @@ model Installment {
   sync_status   SyncStatus @default(pending)
   shift_id      Int?
 
+  tenant      Tenant   @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
   student     Student? @relation(fields: [student_id], references: [id], onDelete: SetNull)
   enrollment    Enrollment @relation(fields: [enrollment_id], references: [id])
 
+  @@index([tenant_id])
+  @@index([student_id])
+  @@index([enrollment_id])
+  @@index([tenant_id, status, due_date])   // ← الأقساط المتأخرة
   @@map("installments")
 }
 
@@ -380,6 +786,7 @@ model Installment {
 // ─────────────────────────────────────────
 model Expense {
   id          Int      @id @default(autoincrement())
+  tenant_id   Int      // ← الختم
   shift_id    Int?
   category    String
   description String?
@@ -388,9 +795,24 @@ model Expense {
   created_at  DateTime @default(now())
   updated_at  DateTime @updatedAt
   sync_status SyncStatus @default(pending)
+  branch_id  Int
+  created_by Int?
 
+  /// ← الدرج اللي الفلوس خرجت منه
+  drawer_id  Int?
+
+  tenant      Tenant   @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
   shift       Shift?   @relation(fields: [shift_id], references: [id])
+  drawer      CashDrawer? @relation(fields: [drawer_id], references: [id])
+  branch     Branch @relation(fields: [branch_id], references: [id])
+  created_by_user User? @relation("ExpenseCreatedBy", fields: [created_by], references: [id])
 
+  @@index([tenant_id])
+  @@index([branch_id])
+  @@index([tenant_id, branch_id, expense_date])
+  @@index([shift_id])
+  @@index([created_by])
+  @@index([drawer_id, created_at])           // ← حسبة رصيد الدرج وكشف حركته
   @@map("expenses")
 }
 
@@ -399,6 +821,7 @@ model Expense {
 // ─────────────────────────────────────────
 model CashTransaction {
   id          Int      @id @default(autoincrement())
+  tenant_id   Int      // ← الختم
   shift_id    Int?
   type        TransactionType
   amount      Decimal  @db.Decimal(10, 2)
@@ -406,9 +829,24 @@ model CashTransaction {
   created_at  DateTime @default(now())
   updated_at  DateTime @updatedAt
   sync_status SyncStatus @default(pending)
+  branch_id  Int
+  created_by Int?
 
+  /// ← الدرج اللي الفلوس دخلته أو خرجت منه
+  drawer_id  Int?
+
+  tenant      Tenant   @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
   shift       Shift?   @relation(fields: [shift_id], references: [id])
+  drawer      CashDrawer? @relation(fields: [drawer_id], references: [id])
+  branch     Branch @relation(fields: [branch_id], references: [id])
+  created_by_user User? @relation("CashCreatedBy", fields: [created_by], references: [id])
 
+  @@index([tenant_id])
+  @@index([branch_id])
+  @@index([tenant_id, branch_id, created_at])
+  @@index([shift_id])
+  @@index([created_by])
+  @@index([drawer_id, type, created_at])     // ← حسبة رصيد الدرج وكشف حركته
   @@map("cash_transactions")
 }
 
@@ -417,35 +855,215 @@ model CashTransaction {
 // ─────────────────────────────────────────
 model NotificationLog {
   id          Int      @id @default(autoincrement())
+  tenant_id   Int      // ← الختم
   student_id  Int?
   type        NotificationType
   phone       String
   message     String
-  status      String   @default("sent") // sent / failed
+  status      String   @default("sent")
   sent_at     DateTime @default(now())
   sync_status SyncStatus @default(synced)
   shift_id    Int?
 
+  tenant      Tenant   @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
   student     Student? @relation(fields: [student_id], references: [id])
 
+  @@index([tenant_id])
+  @@index([student_id])
+  @@index([tenant_id, sent_at])
   @@map("notifications_log")
 }
 
 // ─────────────────────────────────────────
-// 18. جدول السنوات
+// 18. SEMESTERS (السنوات/الفصول)
 // ─────────────────────────────────────────
 model Semester {
   id          Int      @id @default(autoincrement())
-  name        String   // "الفصل الأول" / "الفصل الثاني" / "الصيفي"
-  year        String   // "2025-2026"
+  tenant_id   Int      // ← الختم
+  name        String
+  year        String
   is_active   Boolean  @default(true)
   branch_id   Int
   created_at  DateTime @default(now())
   updated_at  DateTime @updatedAt
   sync_status SyncStatus @default(synced)
 
+  tenant      Tenant   @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
   branch      Branch   @relation(fields: [branch_id], references: [id])
   enrollments Enrollment[]
+  student_registrations StudentRegistration[]
 
+  @@index([tenant_id])
+  @@index([tenant_id, branch_id])
   @@map("semesters")
+}
+
+// ─────────────────────────────────────────
+// 19. REFRESH TOKENS
+// ─────────────────────────────────────────
+model RefreshToken {
+  id         Int       @id @default(autoincrement())
+  token_hash String    @unique
+  user_id    Int
+  expires_at DateTime
+  revoked_at DateTime?
+  ip_address String?
+  created_at DateTime  @default(now())
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id])
+  @@index([token_hash])
+}
+
+// ── وصول المستخدم للفروع ───────────────────────────────────
+model UserBranchAccess {
+  id         Int      @id @default(autoincrement())
+  tenant_id  Int
+  user_id    Int
+  branch_id  Int
+  granted_by Int?     // مين منح الصلاحية (للتدقيق)
+  features   String   @default("attendance,payments")   // ← السطر ده
+  created_at DateTime @default(now())
+
+  tenant  Tenant @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  user    User   @relation("UserBranchAccess", fields: [user_id], references: [id], onDelete: Cascade)
+  branch  Branch @relation(fields: [branch_id], references: [id], onDelete: Cascade)
+  granter User?  @relation("AccessGrantedBy", fields: [granted_by], references: [id], onDelete: SetNull)
+
+  @@unique([user_id, branch_id], name: "uq_user_branch")
+  @@index([tenant_id])
+  @@index([user_id])
+  @@index([branch_id])
+  @@index([granted_by])
+  @@map("user_branch_access")
+}
+
+// ── صلاحيات الميزات لكل مستخدم ─────────────────────────────
+model UserPermission {
+  id         Int      @id @default(autoincrement())
+  tenant_id  Int
+  user_id    Int
+  permission String   // "students:delete", "payments:create"...
+  granted_by Int?
+  created_at DateTime @default(now())
+
+  tenant  Tenant @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  user    User   @relation("UserPermissions", fields: [user_id], references: [id], onDelete: Cascade)
+  granter User?  @relation("PermissionGrantedBy", fields: [granted_by], references: [id], onDelete: SetNull)
+
+  @@unique([user_id, permission], name: "uq_user_permission")
+  @@index([tenant_id])
+  @@index([user_id])
+  @@index([granted_by])
+  @@map("user_permissions")
+}
+
+// ─────────────────────────────────────────
+// 20. REGISTRATION LINKS (رابط الـ QR بتاع التسجيل)
+// ─────────────────────────────────────────
+/// رابط واحد شغّال لكل فرع. "التدوير" = نفس الصف بتوكن جديد،
+/// فالـ QR القديم بيموت لحظة التدوير من غير ما نسيب صفوف ميتة.
+model RegistrationLink {
+  id          Int       @id @default(autoincrement())
+  tenant_id   Int
+  branch_id   Int
+
+  /// اللي بيتحط في الـ QR — عشوائي وطويل
+  token       String    @unique
+
+  is_active   Boolean   @default(true)
+  created_by  Int?
+
+  /// آخر مرة اتغيّر فيها التوكن — فحص الـ IP بيتصفّر من هنا
+  rotated_at  DateTime  @default(now())
+  expires_at  DateTime?
+
+  /// كام طلب اتبعت من الرابط ده من آخر تدوير
+  uses_count  Int       @default(0)
+
+  created_at  DateTime  @default(now())
+  updated_at  DateTime  @updatedAt
+
+  tenant        Tenant   @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  branch        Branch   @relation(fields: [branch_id], references: [id], onDelete: Cascade)
+  creator       User?    @relation("RegLinkCreatedBy", fields: [created_by], references: [id], onDelete: SetNull)
+  registrations StudentRegistration[]
+
+  @@unique([branch_id], name: "uq_reg_link_branch")
+  @@index([tenant_id])
+  @@index([created_by])
+  @@map("registration_links")
+}
+
+// ─────────────────────────────────────────
+// 21. STUDENT REGISTRATIONS (طلبات التسجيل)
+// ─────────────────────────────────────────
+/// الطالب لسه **مش** في جدول students. الصف ده بيتحوّل لطالب
+/// حقيقي لما الموظف يوافق.
+model StudentRegistration {
+  id            Int      @id @default(autoincrement())
+  tenant_id     Int
+  branch_id     Int
+  link_id       Int?
+
+  name          String
+  phone         String
+  parent_phone  String
+  alt_phone     String?
+  notes         String?
+
+  /// الصف اللي الطالب اختاره (أولى ثانوي — ترم أول).
+  ///
+  /// ⚠ الفصل بتاع الطلب كله مش بتاع كل مادة — الطالب بيختار صفه
+  ///   مرة واحدة وكل تسجيلاته بتتعمل عليه وقت الموافقة.
+  ///
+  /// اختياري عشان الفرع اللي لسه مالوش فصول شغّالة يقدر يستقبل
+  /// طلبات، والموظف يحدّد الصف بإيده بعدين.
+  semester_id   Int?
+
+  status        RegistrationStatus @default(pending)
+  reviewed_by   Int?
+  reviewed_at   DateTime?
+  reject_reason String?
+
+  /// بيتملى بعد الموافقة
+  student_id    Int?
+
+  /// لمنع التكرار من نفس الجهاز — بيتقارن بـ rotated_at
+  submitted_ip  String?
+
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
+
+  tenant   Tenant            @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+  branch   Branch            @relation(fields: [branch_id], references: [id], onDelete: Cascade)
+  link     RegistrationLink? @relation(fields: [link_id], references: [id], onDelete: SetNull)
+  reviewer User?             @relation("RegReviewedBy", fields: [reviewed_by], references: [id], onDelete: SetNull)
+  student  Student?          @relation(fields: [student_id], references: [id], onDelete: SetNull)
+  semester Semester?         @relation(fields: [semester_id], references: [id], onDelete: SetNull)
+  courses  StudentRegistrationCourse[]
+
+  @@index([tenant_id, branch_id, status])
+  @@index([tenant_id, phone])
+  @@index([link_id])
+  @@index([reviewed_by])
+  @@index([student_id])
+  @@index([semester_id])
+  @@map("student_registrations")
+}
+
+/// المواد اللي الطالب اختارها في الطلب — جدول مستقل بدل نص JSON
+/// عشان نقدر نفلتر ونعمل join، ولو المادة اتمسحت الصف يمشي معاها.
+model StudentRegistrationCourse {
+  id              Int @id @default(autoincrement())
+  registration_id Int
+  course_id       Int
+
+  registration StudentRegistration @relation(fields: [registration_id], references: [id], onDelete: Cascade)
+  course       Course              @relation(fields: [course_id], references: [id], onDelete: Cascade)
+
+  @@unique([registration_id, course_id], name: "uq_reg_course")
+  @@index([course_id])
+  @@map("student_registration_courses")
 }

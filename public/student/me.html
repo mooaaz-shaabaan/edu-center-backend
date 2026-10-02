@@ -601,6 +601,33 @@
         color: var(--success);
       }
 
+      .linkbtn {
+        display: block;
+        width: 100%;
+        margin-top: 14px;
+        padding: 10px;
+        background: none;
+        border: 0;
+        color: var(--primary);
+        font: inherit;
+        font-size: 13.5px;
+        font-weight: 700;
+        text-decoration: underline;
+        cursor: pointer;
+        min-height: 0;
+      }
+
+      .clock {
+        text-align: center;
+        font-size: 12.5px;
+        color: var(--muted);
+        margin: 16px 0 0;
+      }
+      .clock.warn {
+        color: var(--danger);
+        font-weight: 700;
+      }
+
       .state {
         text-align: center;
         padding: 56px 20px;
@@ -661,6 +688,10 @@
         </div>
 
         <button type="submit" id="loginBtn">دخول</button>
+
+        <button type="button" class="linkbtn" id="statusBtn">
+          لسه مستني الموافقة على طلبك؟ اعرف حالته
+        </button>
       </form>
 
       <!-- ══ تحميل ══ -->
@@ -846,6 +877,7 @@
           </form>
         </section>
 
+        <p class="clock" id="clock"></p>
         <button type="button" class="ghost" id="outBtn">خروج</button>
       </div>
     </div>
@@ -859,6 +891,8 @@
         };
         var KEY = "portal_token";
         var data = null;
+        var clockTimer = null;
+        var lockTimer = null;
 
         // ── أدوات ──────────────────────────────────────────────
         function toLatin(s) {
@@ -928,6 +962,105 @@
           } catch (e) {}
         }
 
+        // ── عمر الجلسة ─────────────────────────────────────────
+        //
+        // ⚠ الميعاد بيتقرا من التوكن نفسه (`exp` جوه الـ JWT) مش من
+        //   قيمة مخزّنة جنبه. القيمة المخزّنة كانت بتضيع لو الطالب
+        //   داخل من قبل التحديث أو الـ sessionStorage مقفول، وكانت
+        //   بتفضل موجودة بعد ما التوكن يتغيّر. الـ payload مقروء
+        //   للكل — ده مش سر، التوقيع هو اللي بيحمي.
+        //
+        // ⚠ وده كله للعرض والخروج التلقائي بس. السيرفر هو اللي
+        //   بيرفض فعلاً: أي طلب بعد الميعاد بيرجع SESSION_EXPIRED
+        //   حتى لو حد وقّف الجافاسكربت أو عدّل الساعة.
+        function sessionEndsAt() {
+          var t = getToken();
+          if (!t) return 0;
+          var parts = t.split(".");
+          if (parts.length !== 3) return 0;
+          try {
+            var b = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+            while (b.length % 4) b += "=";
+            var raw = atob(b);
+            var json = decodeURIComponent(
+              raw
+                .split("")
+                .map(function (c) {
+                  return "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2);
+                })
+                .join(""),
+            );
+            var exp = Number(JSON.parse(json).exp);
+            return exp > 0 ? exp * 1000 : 0;
+          } catch (e) {
+            return 0;
+          }
+        }
+
+        function stopClock() {
+          if (clockTimer) {
+            clearInterval(clockTimer);
+            clockTimer = null;
+          }
+        }
+        function startClock() {
+          stopClock();
+          clockTimer = setInterval(tickClock, 1000);
+          tickClock();
+        }
+        function tickClock() {
+          var end = sessionEndsAt();
+          var box = $("clock");
+
+          // توكن مش مفهوم (شكل تاني أو متصفح قديم) → مانطردوش،
+          // نسيب السيرفر يقرر. أول طلب بعد الميعاد هيرجّعه للدخول.
+          if (!end) {
+            box.textContent = "";
+            box.className = "clock";
+            stopClock();
+            return;
+          }
+
+          var left = end - Date.now();
+          if (left <= 0) {
+            stopClock();
+            return signOut("انتهت الجلسة. ادخل بالكود تاني.");
+          }
+
+          var secs = Math.floor(left / 1000);
+          box.textContent =
+            "الجلسة بتقفل بعد " +
+            Math.floor(secs / 60) +
+            ":" +
+            ("0" + (secs % 60)).slice(-2);
+          box.className = "clock" + (left <= 60000 ? " warn" : "");
+        }
+
+        // ── قفل زرار الدخول بعد ٣ محاولات غلط ──────────────────
+        function lockLogin(seconds) {
+          var until = Date.now() + (Number(seconds) || 3600) * 1000;
+          var btn = $("loginBtn");
+          if (lockTimer) clearInterval(lockTimer);
+
+          var paint = function () {
+            var left = Math.ceil((until - Date.now()) / 1000);
+            if (left <= 0) {
+              clearInterval(lockTimer);
+              lockTimer = null;
+              btn.disabled = false;
+              btn.textContent = "دخول";
+              return;
+            }
+            var m = Math.floor(left / 60);
+            btn.textContent =
+              "مقفول — " + (m > 0 ? m + " دقيقة" : left + " ثانية");
+          };
+
+          btn.disabled = true;
+          lockTimer = setInterval(paint, 1000);
+          paint();
+        }
+
         ["lphone", "parent", "alt"].forEach(function (id) {
           var e = $(id);
           if (!e) return;
@@ -983,6 +1116,12 @@
               btn.disabled = false;
               btn.textContent = "دخول";
               if (!res.ok || !res.j.success) {
+                // ٣ محاولات غلط (أو حد الشبكة) → الزرار يتقفل والعدّاد يمشي
+                if (res.j.code === "LOCKED" || res.j.code === "TOO_MANY") {
+                  lockLogin(
+                    (res.j.data && res.j.data.retry_after_seconds) || 3600,
+                  );
+                }
                 return banner(
                   "loginBanner",
                   res.j.message || "مش قادرين ندخّلك.",
@@ -995,6 +1134,58 @@
             .catch(function () {
               btn.disabled = false;
               btn.textContent = "دخول";
+              banner("loginBanner", "مش قادرين نوصل للسيرفر.");
+            });
+        });
+
+        // ── حالة طلب التسجيل ───────────────────────────────────
+        //
+        // ⚠ الطالب اللي لسه متقبلش مالوش كود أصلاً، فلو جرّب يدخل
+        //   كان بياخد «الكود أو رقم الموبايل مش مظبوط» وهو مش غلطان
+        //   — وكمان بيحرق محاولة من التلاتة. الزرار ده بيسأل السيرفر
+        //   بالرقم بس، على endpoint منفصل ليه عدّاده الخاص.
+        $("statusBtn").addEventListener("click", function () {
+          banner("loginBanner", "");
+          var phone = digits($("lphone").value);
+          if (!validPhone(phone)) {
+            return showErr("lphone", "اكتب رقم موبايلك الأول.");
+          }
+
+          var b = $("statusBtn");
+          b.disabled = true;
+          b.textContent = "بنشوف…";
+
+          fetch("/api/portal/status", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Accept: "application/json",
+            },
+            body: JSON.stringify({ phone: phone }),
+          })
+            .then(function (r) {
+              return r.json().then(function (j) {
+                return { ok: r.ok, j: j };
+              });
+            })
+            .then(function (res) {
+              b.disabled = false;
+              b.textContent = "لسه مستني الموافقة على طلبك؟ اعرف حالته";
+
+              if (!res.ok || !res.j.success) {
+                return banner(
+                  "loginBanner",
+                  res.j.message || "مش قادرين نشوف حالة الطلب.",
+                );
+              }
+
+              var d = res.j.data;
+              var good = d.state === "pending" || d.state === "approved";
+              banner("loginBanner", d.message, good);
+            })
+            .catch(function () {
+              b.disabled = false;
+              b.textContent = "لسه مستني الموافقة على طلبك؟ اعرف حالته";
               banner("loginBanner", "مش قادرين نوصل للسيرفر.");
             });
         });
@@ -1020,6 +1211,7 @@
               data = res.j.data;
               fill();
               $("app").hidden = false;
+              startClock();
             })
             .catch(function () {
               $("loading").hidden = true;
@@ -1632,6 +1824,7 @@
         });
 
         function signOut(msg) {
+          stopClock();
           clearToken();
           data = null;
           $("app").hidden = true;
@@ -1643,9 +1836,17 @@
           signOut("");
         });
 
+        // ⚠ التاب ممكن يكون قاعد مفتوح من ساعة — من غير الفحص ده الصفحة
+        //   كانت بتحمّل وتاخد 401 وترجّعه لشاشة الدخول بعد لفة كاملة.
+        //   `end === 0` يعني توكن مش مقروء — نسيب السيرفر يحكم.
         if (getToken()) {
-          $("login").hidden = true;
-          load();
+          var end = sessionEndsAt();
+          if (end && end <= Date.now()) {
+            signOut("");
+          } else {
+            $("login").hidden = true;
+            load();
+          }
         }
       })();
     </script>

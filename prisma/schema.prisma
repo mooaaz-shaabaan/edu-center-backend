@@ -163,7 +163,6 @@ model Branch {
   exams             Exam[]
   students          Student[]
   courses           Course[]
-  semesters         Semester[]
   attendances       Attendance[]
   payments          Payment[]
   cash_transactions CashTransaction[]
@@ -883,18 +882,16 @@ model Semester {
   name        String
   year        String
   is_active   Boolean  @default(true)
-  branch_id   Int
   created_at  DateTime @default(now())
   updated_at  DateTime @updatedAt
   sync_status SyncStatus @default(synced)
 
   tenant      Tenant   @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
-  branch      Branch   @relation(fields: [branch_id], references: [id])
   enrollments Enrollment[]
   student_registrations StudentRegistration[]
 
   @@index([tenant_id])
-  @@index([tenant_id, branch_id])
+  @@unique([tenant_id, name, year], name: "uq_semester_per_tenant")
   @@map("semesters")
 }
 

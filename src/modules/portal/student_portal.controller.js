@@ -82,10 +82,13 @@ const branchCourses = async (tenantId, branchId) => {
     .sort((a, b) => a.name.localeCompare(b.name, "ar"));
 };
 
-/// الفصول الشغّالة في الفرع — الطالب بيختار واحد منهم
-const branchSemesters = async (tenantId, branchId) => {
+/// الصفوف الشغّالة في السنتر — الطالب بيختار واحد منهم
+///
+/// ⚠ بقت على مستوى السنتر مش الفرع: نفس «أولى ثانوي ٢٠٢٥» لكل
+///   الفروع، فطالب بينتقل من فرع لفرع مابيتغيّرش صفه.
+const tenantSemesters = async (tenantId) => {
   const rows = await prisma.semester.findMany({
-    where: { tenant_id: tenantId, branch_id: branchId, is_active: true },
+    where: { tenant_id: tenantId, is_active: true },
     select: { id: true, name: true, year: true },
     orderBy: [{ year: "desc" }, { name: "asc" }],
   });
@@ -98,6 +101,56 @@ const branchSemesters = async (tenantId, branchId) => {
   }));
 };
 
+// ── قفل محاولات الدخول ────────────────────────────────────
+/// ٣ محاولات غلط على نفس الكود = قفل ساعة.
+///
+/// ⚠ العدّ بالكود مش بالـ IP عن قصد: طلاب الفرع كلهم على واي فاي
+///   واحد، فالعدّ بالعنوان كان معناه إن تلات محاولات غلط من أي حد
+///   بتقفل الصفحة على الفرع كله. فيه limiter بالـ IP كمان في ملف
+///   الراوتس كخط تاني ضد اللي بيمسح أكواد بسكربت.
+///
+/// ⚠ العدّاد في ذاكرة العملية: إعادة تشغيل السيرفر بتصفّره، ولو
+///   شغّلت أكتر من عملية كل واحدة ليها نسختها. مقبول هنا — الحماية
+///   الحقيقية إن الكود لوحده مايكفيش، لازم يطابق رقم موبايل الطالب.
+///   لو بعدين بقى فيه أكتر من عملية، الحل جدول في الداتابيز أو Redis.
+const MAX_TRIES = 3;
+const LOCK_MS = 60 * 60 * 1000;
+
+/// code → { n: عدد المحاولات الغلط, until: وقت فك القفل }
+const loginTries = new Map();
+
+/// ⚠ من غير التنضيف ده الـ Map بتكبر مع كل كود اتجرّب ومابتصغرش —
+///   تسريب ذاكرة بطيء على سيرفر شغّال شهور. `unref` عشان التايمر
+///   مايمنعش العملية من الخروج.
+setInterval(
+  () => {
+    const now = Date.now();
+    for (const [k, v] of loginTries) if (v.until <= now) loginTries.delete(k);
+  },
+  10 * 60 * 1000,
+).unref();
+
+/// بيرجّع المللي ثانية الفاضلة على فك القفل — صفر يعني مش مقفول
+const lockedFor = (code) => {
+  const rec = loginTries.get(code);
+  if (!rec) return 0;
+  const left = rec.until - Date.now();
+  if (left <= 0) {
+    loginTries.delete(code);
+    return 0;
+  }
+  return rec.n >= MAX_TRIES ? left : 0;
+};
+
+/// بيسجّل محاولة غلط وبيرجّع الفاضل قبل القفل
+const noteFail = (code) => {
+  const rec = loginTries.get(code) || { n: 0, until: 0 };
+  rec.n += 1;
+  rec.until = Date.now() + LOCK_MS;
+  loginTries.set(code, rec);
+  return Math.max(0, MAX_TRIES - rec.n);
+};
+
 // ── GET /api/portal/register/:token ───────────────────────
 /// الصفحة بتنادي عليها أول ما تفتح — تعرف السنتر والفرع
 /// والمواد المتاحة قبل ما تعرض الفورم.
@@ -106,7 +159,7 @@ const getRegisterForm = async (req, res, next) => {
     const link = await findUsableLink(req.params.token);
     const [courses, semesters] = await Promise.all([
       branchCourses(link.tenant_id, link.branch_id),
-      branchSemesters(link.tenant_id, link.branch_id),
+      tenantSemesters(link.tenant_id),
     ]);
 
     res.json({
@@ -215,7 +268,7 @@ const submitRegistration = async (req, res, next) => {
     // ── الفصل المختار لازم يكون فصل شغّال في نفس الفرع ─────
     // ⚠ الطالب ممكن يبعت أي رقم من الـ devtools. من غير الفحص
     //   ده ممكن يربط نفسه بفصل فرع تاني أو فصل موقوف.
-    const semesters = await branchSemesters(tenantId, branchId);
+    const semesters = await tenantSemesters(tenantId);
 
     if (semesters.length > 0 && !semesterId) {
       return res.status(400).json({
@@ -278,10 +331,102 @@ const submitRegistration = async (req, res, next) => {
     // شاشة الطلبات عند الموظفين تتحدّث فورًا
     notify("registrations_updated", {}, tenantId);
 
+    // ⚠ الرد مافيهوش أي بيانات بترجع للطالب، ومفيش endpoint يقراها
+    //   بعد كده. اللي لسه متقبلش مايشوفش غير إن الطلب وصل — فمفيش
+    //   طريق حد يعرف منه مين مسجّل في السنتر برقم موبايل.
     res.status(201).json({
       success: true,
-      message: `تمام يا ${registration.name}. طلبك وصل لموظف الاستقبال، هيراجعه ويفعّلك.`,
+      message: "تم إرسال طلبك بنجاح. هيتم الموافقة عليه في أسرع وقت.",
       data: { registration_id: registration.id },
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// ── POST /api/portal/status ───────────────────────────────
+/// «لسه مستني الموافقة؟» — الطالب بيكتب رقمه ويعرف طلبه فين.
+///
+/// ⚠ منفصل عن `/session` عن قصد، مش فرع جوّاه:
+///   • الدخول بيدّي رسالة واحدة لكل أنواع الفشل عشان مايبقاش أداة
+///     تخمين أكواد، وبيقفل بعد ٣ محاولات. الطالب المعلّق مالوش كود
+///     أصلاً، فلو كان بيعدّي من هناك كان هيتقفل وهو مش غلطان.
+///   • والعكس: مهاجم كان هيسجّل طلب برقم، ويستخدم الفرع المتساهل ده
+///     عشان يجرّب أكواد من غير ما العدّاد يقفل عليه.
+///
+/// ⚠ بيرجّع حالة بس — مفيش اسم ولا فرع ولا مواد ولا تاريخ. اللي
+///   يخمّن رقم يعرف إن فيه طلب، وخلاص.
+const registrationStatus = async (req, res, next) => {
+  try {
+    const phone = String(req.validated.body.phone || "").trim();
+
+    // ⚠ من غير فلتر سنتر: الصفحة دي مفيهاش كود ولا رابط فرع، فمفيش
+    //   حاجة تقول إحنا في أنهي سنتر. الرقم فريد جوه السنتر الواحد
+    //   (uq_student_phone)، والتقاطع بين سنترين نادر ومابيأثرش —
+    //   الرسالة مابتسمّيش السنتر أصلاً.
+    const student = await prisma.student.findFirst({
+      where: { phone },
+      select: { id: true, is_active: true },
+    });
+
+    const approved = {
+      state: "approved",
+      message:
+        "طلبك اتقبل وبقيت طالب عندنا. خد الكود من موظف الاستقبال وادخل بيه فوق.",
+    };
+
+    if (student) {
+      return res.json({
+        success: true,
+        data: student.is_active
+          ? approved
+          : {
+              state: "inactive",
+              message: "حسابك موقوف دلوقتي. كلّم موظف الاستقبال.",
+            },
+      });
+    }
+
+    // ⚠ آخر طلب مش أول طلب: ممكن يكون اترفض وبعت تاني
+    const reg = await prisma.studentRegistration.findFirst({
+      where: { phone },
+      orderBy: { created_at: "desc" },
+      select: { status: true, reject_reason: true },
+    });
+
+    if (!reg) {
+      return res.json({
+        success: true,
+        data: {
+          state: "none",
+          message:
+            "مفيش طلب بالرقم ده. كلّم موظف الاستقبال عشان يديك رابط التسجيل.",
+        },
+      });
+    }
+
+    if (reg.status === "approved") {
+      return res.json({ success: true, data: approved });
+    }
+
+    if (reg.status === "rejected") {
+      return res.json({
+        success: true,
+        data: {
+          state: "rejected",
+          message: reg.reject_reason
+            ? `الطلب اترفض — ${reg.reject_reason}`
+            : "الطلب اترفض. كلّم موظف الاستقبال.",
+        },
+      });
+    }
+
+    res.json({
+      success: true,
+      data: {
+        state: "pending",
+        message: "تم إرسال طلبك بنجاح. هيتم الموافقة عليه في أسرع وقت.",
+      },
     });
   } catch (err) {
     next(err);
@@ -293,9 +438,25 @@ const submitRegistration = async (req, res, next) => {
 const openPortalSession = async (req, res, next) => {
   try {
     const { portal_code, phone } = req.validated.body;
+    const code = portal_code.trim();
+
+    // ── مقفول من محاولات قبل كده؟ ─────────────────────────
+    // ⚠ الفحص ده قبل أي استعلام على الداتابيز — المقفول مايشغّلش
+    //   السيرفر أصلاً
+    const lockLeft = lockedFor(code);
+    if (lockLeft > 0) {
+      return res.status(429).json({
+        success: false,
+        code: "LOCKED",
+        message: `اتجرّب الكود ده غلط ${MAX_TRIES} مرات. جرّب بعد ${Math.ceil(
+          lockLeft / 60000,
+        )} دقيقة.`,
+        data: { retry_after_seconds: Math.ceil(lockLeft / 1000) },
+      });
+    }
 
     const student = await prisma.student.findFirst({
-      where: { portal_code: portal_code.trim() },
+      where: { portal_code: code },
       select: {
         id: true,
         name: true,
@@ -307,18 +468,38 @@ const openPortalSession = async (req, res, next) => {
     });
 
     // ⚠ رسالة واحدة للحالات كلها — كود غلط، رقم غلط، طالب موقوف.
-    //   أي تفرقة بينهم بتخلّي الصفحة أداة تخمين أكواد.
-    const fail = () =>
-      res.status(401).json({
+    //   أي تفرقة بينهم بتخلّي الصفحة أداة تخمين أكواد. وعدد
+    //   المحاولات الفاضلة نفس الرقم في كل الحالات، فمابيسرّبش
+    //   إن الكود موجود ولا لأ.
+    const fail = () => {
+      const remaining = noteFail(code);
+
+      if (remaining > 0) {
+        return res.status(401).json({
+          success: false,
+          code: "BAD_LOGIN",
+          message: `الكود أو رقم الموبايل مش مظبوط. فاضل ${remaining} ${
+            remaining === 1 ? "محاولة" : "محاولات"
+          }.`,
+          data: { tries_left: remaining },
+        });
+      }
+
+      return res.status(429).json({
         success: false,
-        code: "BAD_LOGIN",
-        message: "الكود أو رقم الموبايل مش مظبوط.",
+        code: "LOCKED",
+        message: `اتجرّب غلط ${MAX_TRIES} مرات. جرّب بعد ساعة.`,
+        data: { retry_after_seconds: Math.ceil(LOCK_MS / 1000) },
       });
+    };
 
     if (!student) return fail();
     if (student.phone !== phone.trim()) return fail();
     if (!student.is_active) return fail();
     if (!student.tenant?.is_active) return fail();
+
+    // دخول صح → العدّاد يتصفّر
+    loginTries.delete(code);
 
     const token = jwt.sign(
       { sid: student.id, tenant_id: student.tenant_id, scope: "portal" },
@@ -349,11 +530,7 @@ const portalAuth = (req, res, next) => {
   if (!token) {
     return res
       .status(401)
-      .json({
-        success: false,
-        code: "NO_SESSION",
-        message: "سجّل دخول الأول.",
-      });
+      .json({ success: false, code: "NO_SESSION", message: "سجّل دخول الأول." });
   }
 
   try {
@@ -362,8 +539,7 @@ const portalAuth = (req, res, next) => {
       audience: PORTAL_AUDIENCE,
     });
 
-    if (payload.scope !== "portal" || !payload.sid)
-      throw new Error("bad scope");
+    if (payload.scope !== "portal" || !payload.sid) throw new Error("bad scope");
 
     req.portal = { studentId: payload.sid, tenantId: payload.tenant_id };
     next();
@@ -424,7 +600,7 @@ const getMe = async (req, res, next) => {
     const [courses, semesters, attendance, grades, payments, attStats] =
       await Promise.all([
         branchCourses(student.tenant_id, student.branch_id),
-        branchSemesters(student.tenant_id, student.branch_id),
+        tenantSemesters(student.tenant_id),
 
         // آخر حضور — اليوم والحصة والمادة
         prisma.attendance.findMany({
@@ -695,7 +871,7 @@ const updateMe = async (req, res, next) => {
     // ── الفصل ─────────────────────────────────────────────
     let semester = null;
     if (semesterId != null) {
-      const list = await branchSemesters(student.tenant_id, student.branch_id);
+      const list = await tenantSemesters(student.tenant_id);
       if (!list.some((x) => x.id === semesterId)) {
         return res.status(400).json({
           success: false,
@@ -854,6 +1030,7 @@ const regenerateMyQr = async (req, res, next) => {
 module.exports = {
   getRegisterForm,
   submitRegistration,
+  registrationStatus,
   openPortalSession,
   portalAuth,
   getMe,

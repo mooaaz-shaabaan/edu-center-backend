@@ -14,6 +14,7 @@ const validate = require("../../middlewares/validate");
 const {
   getRegisterForm,
   submitRegistration,
+  registrationStatus,
   openPortalSession,
   portalAuth,
   getMe,
@@ -53,27 +54,32 @@ const submitLimiter = rateLimit({
   },
 });
 
-/// الدخول بالكود — أضيق حاجة. ده المدخل الوحيد اللي ينفع
-/// يتخمّن فيه، فلازم يبقى بطيء بما يكفي إنه مايستاهلش.
+/// الدخول بالكود — خط تاني بالـ IP ورا القفل اللي بالكود
+/// (الكنترولر: ٣ محاولات غلط على نفس الكود = ساعة).
+///
+/// ⚠ `skipSuccessfulRequests` مهمة هنا: طلاب الفرع كلهم بيطلعوا
+///   من نفس عنوان الواي فاي، فمن غيرها كل واحد بيدخل صح كان
+///   بياكل من رصيد اللي بعده وأول ١٥ طالب بيقفلوا الصفحة على
+///   الفرع كله. بالإعداد ده الناجح مش بيتعدّ خالص، والحد بيتصرف
+///   على المحاولات الفاشلة بس — يعني المسح الآلي هو اللي بيتقفل.
 const loginLimiter = rateLimit({
-  windowMs: 10 * 60 * 1000,
-  max: 8,
+  windowMs: 60 * 60 * 1000,
+  max: 15,
+  skipSuccessfulRequests: true,
   standardHeaders: true,
   legacyHeaders: false,
   message: {
     success: false,
     code: "TOO_MANY",
-    message: "محاولات كتير. استنى ١٠ دقايق.",
+    message: "محاولات كتير من الشبكة دي. جرّب بعد ساعة.",
   },
 });
 
 /// تغيير الكود — ٣ مرات في الساعة **لكل طالب**، مش لكل IP.
 ///
-/// ⚠ العدّاد بالطالب مش بالعنوان عن قصد: طلاب السنتر كلهم على
-///   واي فاي واحد = IP واحد، فالعدّ بالـ IP كان معناه إن أول
-///   تلات طلاب يغيّروا كودهم يقفلوا الزرار على الباقيين.
-///   عشان كده الـ limiter ده بييجي **بعد** `portalAuth` في
-///   الراوت تحت — محتاج `req.portal` يكون اتملى.
+/// ⚠ الـ limiter ده بييجي بعد `portalAuth` في الراوت تحت عن قصد:
+///   محتاج `req.portal` يكون اتملى عشان يعدّ بالطالب. لو عدّ بالـ IP،
+///   أول تلات طلاب يغيّروا كودهم كانوا هيقفلوا الزرار على الباقيين.
 const regenLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
   max: 3,
@@ -87,12 +93,24 @@ const regenLimiter = rateLimit({
   },
 });
 
+/// حالة الطلب — أوسع من الدخول لأنه مابيكشفش حاجة غير «فيه طلب
+/// ولا لأ»، وأضيق من القراءة لأنه السطح الوحيد اللي ينفع يتجرّب
+/// بيه أرقام موبايل من غير كود.
+const statusLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  max: 6,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    code: "TOO_MANY",
+    message: "محاولات كتير. استنى شوية أو كلّم موظف الاستقبال.",
+  },
+});
+
 // ── Schemas ───────────────────────────────────────────────
 const phone = z.string().trim().min(8).max(20);
-const courseIds = z
-  .array(z.coerce.number().int().positive())
-  .max(30)
-  .optional();
+const courseIds = z.array(z.coerce.number().int().positive()).max(30).optional();
 const idField = z.coerce.number().int().positive();
 
 const tokenParam = z.object({
@@ -111,6 +129,8 @@ const submitSchema = z.object({
     course_ids: courseIds,
   }),
 });
+
+const statusSchema = z.object({ body: z.object({ phone }) });
 
 const sessionSchema = z.object({
   body: z.object({
@@ -141,6 +161,15 @@ router.post(
   submitLimiter,
   validate(submitSchema),
   submitRegistration,
+);
+
+
+// ── حالة الطلب ────────────────────────────────────────────
+router.post(
+  "/status",
+  statusLimiter,
+  validate(statusSchema),
+  registrationStatus,
 );
 
 // ── التعديل ───────────────────────────────────────────────

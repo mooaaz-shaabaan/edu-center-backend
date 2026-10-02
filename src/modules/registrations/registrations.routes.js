@@ -14,8 +14,11 @@ const validate = require("../../middlewares/validate");
 
 const {
   list,
+  options,
+  update,
   approve,
   reject,
+  bulk,
   getLink,
   rotateLink,
   setLinkActive,
@@ -23,10 +26,13 @@ const {
 
 const idField = z.coerce.number().int().positive();
 const idParam = z.object({ params: z.object({ id: idField }) });
+const phone = z.string().trim().min(8).max(20);
 
 const listSchema = z.object({
   query: z.object({
     status: z.enum(["pending", "approved", "rejected", "all"]).optional(),
+    /// بحث بالاسم أو أي رقم من التلاتة
+    q: z.string().trim().max(100).optional(),
     branch_id: idField.optional(),
     tenant_id: idField.optional(),
     page: z.coerce.number().int().positive().max(10000).optional(),
@@ -34,9 +40,40 @@ const listSchema = z.object({
   }),
 });
 
+/// تعديل الطلب قبل القبول.
+///
+/// ⚠ رقم الطالب مسموح يتغيّر هنا (بعكس تعديل الطالب لنفسه): ده
+///   بالظبط اللي الموظف محتاجه لما الطالب يكتب رقمه غلط. الكنترولر
+///   بيفحص إنه مش متسجّل لطالب تاني ولا لطلب تاني مستني.
+const updateSchema = z.object({
+  params: z.object({ id: idField }),
+  body: z.object({
+    name: z.string().trim().min(2).max(150).optional(),
+    phone: phone.optional(),
+    parent_phone: phone.optional(),
+    alt_phone: z.string().trim().max(20).nullable().optional(),
+    notes: z.string().trim().max(300).nullable().optional(),
+    semester_id: idField.nullable().optional(),
+    course_ids: z.array(idField).max(30).optional(),
+  }),
+});
+
 const rejectSchema = z.object({
   params: z.object({ id: idField }),
   body: z.object({ reason: z.string().trim().max(300).optional() }),
+});
+
+/// قبول / رفض جماعي.
+///
+/// ⚠ الـ ids إجبارية ومحدودة بـ ١٠٠: مفيش «اقبل كل اللي في الفلتر»
+///   من غير قايمة صريحة. الفلتر بيتغيّر بين ما الشاشة تحمّل وما
+///   الموظف يضغط، والفرق بين الاتنين طلاب اتقبلوا وهو مش قاصدهم.
+const bulkSchema = z.object({
+  body: z.object({
+    action: z.enum(["approve", "reject"]),
+    ids: z.array(idField).min(1).max(100),
+    reason: z.string().trim().max(300).optional(),
+  }),
 });
 
 const branchQuery = z.object({
@@ -97,6 +134,31 @@ router.get(
   validateBranch({ required: false }),
   requireBranchAccess("registrations"),
   list,
+);
+
+// ⚠ قبل "/:id" — من غير كده "bulk" هتتقري كـ id والـ Zod هيرفضها
+router.post(
+  "/bulk",
+  validate(bulkSchema),
+  validateBranch({ required: false }),
+  requireBranchAccess("registrations"),
+  bulk,
+);
+
+router.get(
+  "/:id/options",
+  validate(idParam),
+  validateBranch({ required: false }),
+  requireBranchAccess("registrations"),
+  options,
+);
+
+router.put(
+  "/:id",
+  validate(updateSchema),
+  validateBranch({ required: false }),
+  requireBranchAccess("registrations"),
+  update,
 );
 
 router.post(

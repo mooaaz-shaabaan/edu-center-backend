@@ -183,8 +183,6 @@ app.get("/api/stream", auth, (req, res) => {
 //   بتشتغل على كل طلب تحت /api. لو أي حاجة فيهم اتنفّذت قبل
 //   دول، صفحات الطالب العامة بترجع 401.
 app.use("/api/portal", require("./modules/portal/student_portal.routes"));
-app.use("/api/portal", require("./modules/portal/portal.routes"));
-
 app.use("/api/auth", require("./modules/auth/auth.routes"));
 app.use("/api/students", require("./modules/students/students.routes"));
 app.use("/api/shifts", require("./modules/shifts/shifts.routes"));

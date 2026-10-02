@@ -22,3 +22,4 @@ uploads/
 backups/
 
 node_modules/
+/before_semesters.dump

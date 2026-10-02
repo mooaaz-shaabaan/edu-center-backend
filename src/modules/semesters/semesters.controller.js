@@ -33,13 +33,11 @@ const getAll = async (req, res, next) => {
   try {
     const { branch_id, is_active } = req.validated.query;
     const where = { ...tenantWhere(req) };
-    if (branch_id) where.branch_id = branch_id;
     if (is_active !== undefined) where.is_active = is_active;
 
     const semesters = await prisma.semester.findMany({
       where,
       orderBy: { created_at: "desc" },
-      include: { branch: { select: { id: true, name: true } } },
     });
 
     res.json({ success: true, data: semesters });

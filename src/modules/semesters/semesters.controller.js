@@ -7,17 +7,6 @@ const {
 } = require("../../core/tenant");
 
 // Helper: الفرع لازم تابع لنفس السنتر
-const assertBranchInTenant = async (branchId, tenantId) => {
-  const branch = await prisma.branch.findUnique({
-    where: { id: branchId },
-    select: { id: true, tenant_id: true },
-  });
-  if (!branch || branch.tenant_id !== tenantId) {
-    const err = new Error("Branch not found in this center.");
-    err.status = 400;
-    throw err;
-  }
-};
 
 // ═══════════════════════════════════════════
 // SEMESTERS
@@ -31,7 +20,7 @@ const assertBranchInTenant = async (branchId, tenantId) => {
 // من غيره → الكل (شاشة إدارة المراحل)
 const getAll = async (req, res, next) => {
   try {
-    const { branch_id, is_active } = req.validated.query;
+    const { is_active } = req.validated.query;
     const where = { ...tenantWhere(req) };
     if (is_active !== undefined) where.is_active = is_active;
 
@@ -49,10 +38,8 @@ const getAll = async (req, res, next) => {
 // POST /api/semesters
 const create = async (req, res, next) => {
   try {
-    const { name, names, year, branch_id } = req.validated.body;
+    const { name, names, year } = req.validated.body;
     const tenantId = requireTenantId(req);
-
-    await assertBranchInTenant(branch_id, tenantId);
 
     // ادعم الاتنين: name (واحد) أو names (array)
     let stageList = [];
@@ -80,14 +67,19 @@ const create = async (req, res, next) => {
     const semesters = await prisma.$transaction(
       stageList.map((stageName) =>
         prisma.semester.create({
+          // ⚠ من غير `branch_id`. المرحلة بقت على مستوى السنتر
+          //   (ميجريشن `20261001_semesters_tenant_level`) والعمود
+          //   اتشال من الجدول — بس الكنترولر فضل بيبعته، فإضافة أي
+          //   مرحلة كانت بتقع على PrismaClientValidationError.
+          //
+          //   والعميل لسه بيبعت `branch_id` في البودي لأن الـ
+          //   ApiClient بيحقنه في كل طلب — فبنستقبله ونتجاهله.
           data: {
             tenant_id: tenantId, // ← الختم
             name: stageName,
             year,
-            branch_id,
             is_active: isActive,
           },
-          include: { branch: { select: { id: true, name: true } } },
         }),
       ),
     );
@@ -152,7 +144,6 @@ const update = async (req, res, next) => {
         ...(name !== undefined && { name }),
         ...(year !== undefined && { year }),
       },
-      include: { branch: { select: { id: true, name: true } } },
     });
 
     res.json({ success: true, message: "Semester updated.", data: semester });

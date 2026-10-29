@@ -432,10 +432,6 @@ const updateCourse = async (req, res, next) => {
 
 // ── DELETE /api/courses/:id ───────────────────────────────
 
-/** عدّاد آمن — الموديل اللي مش في الـ schema بيرجّع 0 بدل TypeError */
-const safeCount = (model, where) =>
-  prisma[model]?.count ? prisma[model].count({ where }) : Promise.resolve(0);
-
 const deleteCourse = async (req, res, next) => {
   try {
     const id = req.validated.params.id;
@@ -464,17 +460,20 @@ const deleteCourse = async (req, res, next) => {
       }
     }
 
-    // ⚠ كان بيفحص التسجيلات بس. الحضور والدفعات مربوطين بالمادة
-    //   كمان، فالمادة اللي فيها حضور من غير تسجيلات كانت بتقع
-    //   على FK error بـ 500.
-    const [enrollmentsCount, attendanceCount, paymentsCount] =
-      await Promise.all([
-        prisma.enrollment.count({
-          where: { course_id: id, student_id: { not: null } },
-        }),
-        safeCount("attendance", { course_id: id }),
-        safeCount("payment", { course_id: id }),
-      ]);
+    // ⚠ كان بيفحص التسجيلات بس. الحضور مربوط بالمادة بـ FK من
+    //   غير onDelete، فالمادة اللي فيها حضور من غير تسجيلات كانت
+    //   بتقع على FK error بـ 500.
+    //
+    // ⚠ ومافيش فحص للمدفوعات: `Payment` مالهاش `course_id` أصلاً
+    //   في الـ schema. كان فيه عدّاد عليها وكان بيطيّر الحذف كله
+    //   بـ PrismaClientValidationError — يعني الزرار مكانش بيشتغل
+    //   خالص. الدفعة مربوطة بالطالب والدرج، مش بالمادة.
+    const [enrollmentsCount, attendanceCount] = await Promise.all([
+      prisma.enrollment.count({
+        where: { course_id: id, student_id: { not: null } },
+      }),
+      prisma.attendance.count({ where: { course_id: id } }),
+    ]);
 
     if (enrollmentsCount > 0) {
       return res.status(400).json({
@@ -487,13 +486,6 @@ const deleteCourse = async (req, res, next) => {
       return res.status(400).json({
         success: false,
         message: `لا يمكن حذف الكورس — فيه ${attendanceCount} سجل حضور. وقّف الكورس بدل ما تحذفه.`,
-      });
-    }
-
-    if (paymentsCount > 0) {
-      return res.status(400).json({
-        success: false,
-        message: `لا يمكن حذف الكورس — فيه ${paymentsCount} عملية دفع مرتبطة بيه. وقّف الكورس بدل ما تحذفه.`,
       });
     }
 

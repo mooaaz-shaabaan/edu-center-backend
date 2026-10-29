@@ -12,8 +12,18 @@ const num = (v) => (v == null ? null : Number(v));
 // ── نطاق الفروع ───────────────────────────────────────────
 /// ⚠ الموديول كله كان بيفلتر بالسنتر بس — موظف فرع كان بيشوف
 ///   امتحانات الفرع التاني. دي الفلترة اللي كانت ناقصة.
+/// الفروع اللي ليه فيها **امتحانات**.
+///
+/// ⚠ `req.allowedBranchIds` جاية من `requireBranchAccess("exams")`،
+///   فهي أضيق من فروع اليوزر: موظف واخد الامتحانات على فرع واحد
+///   بس مايشوفش امتحانات فرعه التاني. (null = كل الفروع — أونر)
+const examBranches = (req) =>
+  req.allowedBranchIds !== undefined
+    ? req.allowedBranchIds
+    : getAllowedBranchIds(req.user);
+
 const branchScope = (req) => {
-  const allowed = getAllowedBranchIds(req.user); // null = كل الفروع
+  const allowed = examBranches(req);
   if (!allowed) return {};
   // امتحان من غير فرع (داتا قديمة) يفضل ظاهر للكل بدل ما يختفي
   return { OR: [{ branch_id: { in: allowed } }, { branch_id: null }] };
@@ -21,7 +31,7 @@ const branchScope = (req) => {
 
 const assertBranchAccess = (req, branchId) => {
   if (branchId == null) return;
-  const allowed = getAllowedBranchIds(req.user);
+  const allowed = examBranches(req);
   if (!allowed || allowed.includes(branchId)) return;
   const err = new Error("You don't have access to this branch.");
   err.status = 403;

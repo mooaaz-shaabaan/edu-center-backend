@@ -22,8 +22,20 @@ const {
 
 const idField = z.coerce.number().int().positive();
 
-/// المبلغ في الدرج — بيبدأ من صفر (درج فاضي حالة عادية)
+/// فلوس **متعدودة بالإيد** — ورق في درج، فمستحيل تبقى بالسالب
 const money = z.coerce.number().min(0).max(100000000);
+
+/// الرصيد اللي السيستم حاسبه وعرضه على الشاشة.
+///
+/// ⚠ ده **ينفع يبقى بالسالب**، عكس العدّ. الرصيد =
+///   آخر جرد + المقبوضات + الإيداعات − المصروفات − السحوبات
+///   (core/drawerBalance.js)، ومفيش حاجة بتمنع السحب والمصروف
+///   إنهم يعدّوا اللي دخل. فدرج بالسالب حالة واقعية بتحصل.
+///
+///   لما كان `min(0)` زي العدّ، الموظف اللي درجه بالسالب ماكانش
+///   **يقدر يقفل ورديته خالص**: الشاشة بتبعت الرقم اللي عرضته
+///   (سالب) والسيرفر يرفضه ٤٠٠، ومفيش أي طريق تاني.
+const ledgerAmount = z.coerce.number().min(-100000000).max(100000000);
 
 /// ⚠ `z.coerce.boolean()` بيعمل Boolean(v) — يعني النص "false"
 ///   بيتحوّل لـ true. الفلاتر لو بعت force: "false" (نص) كان
@@ -47,7 +59,7 @@ const openSchema = z.object({
     // أو لقى رقم تاني — بيتسجّل فرق باسمه
     counted: money.optional(),
     // الرقم اللي الشاشة عرضته — لو اتغيّر بيرجّع 409 بالجديد
-    expected_seen: money.optional(),
+    expected_seen: ledgerAmount.optional(),
 
     // true = اقفل الشيفت المفتوح وافتح جديد
     force: boolParam.optional().default(false),
@@ -64,7 +76,7 @@ const closeSchema = z.object({
       // اللي في الدرج فعلاً — مطلوب لأي وردية عليها درج.
       // من غيره بيرجّع 400 COUNT_REQUIRED ومعاه المتوقع.
       counted: money.optional(),
-      expected_seen: money.optional(),
+      expected_seen: ledgerAmount.optional(),
     })
     .optional()
     .default({}),
@@ -75,7 +87,7 @@ const ackSchema = z.object({
     .object({
       confirmed: boolParam.optional(),
       counted: money.optional(),
-      expected_seen: money.optional(),
+      expected_seen: ledgerAmount.optional(),
       tenant_id: idField.optional(),
     })
     .optional()

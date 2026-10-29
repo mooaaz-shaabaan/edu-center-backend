@@ -4,7 +4,11 @@ const router = express.Router();
 const { z } = require("zod");
 
 const auth = require("../../middlewares/auth");
-const { requireRole, STAFF, MANAGERS } = require("../../middlewares/rbac");
+const {
+  requireRole,
+  requireBranchAccess,
+  MANAGERS,
+} = require("../../middlewares/rbac");
 const validate = require("../../middlewares/validate");
 const withNotify = require("../../core/withNotify");
 
@@ -106,26 +110,28 @@ const studentParam = z.object({
 
 router.use(auth);
 
+// ⚠ `requireBranchAccess("exams")` بتعمل حاجتين في سطر واحد:
+//   السنتر مشتري الخدمة؟ والموظف واخدها على الفرع ده؟
+//
+//   قبل كده كان `requireRole(...STAFF)` — يعني أي موظف في
+//   السنتر داخل، ومكانش فيه طريقة تمنع واحد بعينه.
+const canExams = requireBranchAccess("exams");
+
 // ── قراءة ─────────────────────────────────────────────────
-router.get("/", validate(listSchema), requireRole(...STAFF), getExams);
+router.get("/", validate(listSchema), canExams, getExams);
 
 // ⚠ الترتيب مهم: /student/:id لازم قبل /:id
 //   وإلا "/student/5" هيتطابق مع "/:id" و id = "student" → 400
 router.get(
   "/student/:studentId",
   validate(studentParam),
-  requireRole(...STAFF),
+  canExams,
   getStudentGrades,
 );
 
-router.get(
-  "/:id/sheet",
-  validate(idParam),
-  requireRole(...STAFF),
-  getExamSheet,
-);
+router.get("/:id/sheet", validate(idParam), canExams, getExamSheet);
 
-router.get("/:id", validate(idParam), requireRole(...STAFF), getExam);
+router.get("/:id", validate(idParam), canExams, getExam);
 
 // ── كتابة ─────────────────────────────────────────────────
 // ⚠ كانت requireRole("admin", "receptionist", "super_admin") —
@@ -134,28 +140,29 @@ router.get("/:id", validate(idParam), requireRole(...STAFF), getExam);
 router.post(
   "/",
   validate(createSchema),
-  requireRole(...STAFF),
+  canExams,
   withNotify(createExam, "exams_updated"),
 );
 
 router.put(
   "/:id",
   validate(updateSchema),
-  requireRole(...STAFF),
+  canExams,
   withNotify(updateExam, "exams_updated"),
 );
 
 router.post(
   "/:id/grades",
   validate(gradesSchema),
-  requireRole(...STAFF),
+  canExams,
   withNotify(saveGrades, "exams_updated"),
 );
 
-// حذف الامتحان بيمسح درجاته كلها — للمديرين بس
+// حذف الامتحان بيمسح درجاته كلها — لازم الصلاحية **والرتبة**
 router.delete(
   "/:id",
   validate(idParam),
+  canExams,
   requireRole(...MANAGERS),
   withNotify(deleteExam, "exams_updated"),
 );

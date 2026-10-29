@@ -5,6 +5,7 @@ const {
   tenantWhere,
   requireTenantId,
   assertSameTenant,
+  resolveTenantId, // ← كان ناقص: visibleUsersWhere بتستخدمه
 } = require("../../core/tenant");
 const {
   isConnected,
@@ -40,14 +41,23 @@ const ROLE_RANK = {
   receptionist: 1,
 };
 
-// الفيتشرز المسموح بيها (whitelist — أي حاجة برّاها بترفض)
-// لازم تتطابق مع AppFeatures في الفلاتر
+// الصلاحيات اللي ممكن تتمنح **لمستخدم** (whitelist — أي حاجة
+// برّاها بترفض). لازم تتطابق مع `AppFeatures.all` في الفلاتر.
+//
+// ⚠ مش نفس `TENANT_FEATURES` اللي في core/subscription.js:
+//   دي اللي السنتر بيشتريها، ودي اللي بتتوزّع على الموظفين.
+//   السنتر لازم يكون مشتري الخدمة **و** الموظف واخدها على الفرع.
 const ALLOWED_FEATURES = [
   "students",
   "registrations", // ← جديد: طلبات التسجيل الجاية من الموقع
   "attendance",
   "courses",
   "semesters",
+  // ⚠ الامتحانات كانت للسنتر بس ومفتوحة لكل الموظفين. بقت
+  //   زي الباقي — تتدّي لموظف على فرع. الصفوف القديمة اتاخدت
+  //   بالهجرة `20261029_grant_exams_feature` عشان محدش يصحى
+  //   يلاقي الشاشة اختفت.
+  "exams",
   "schedules",
   "payments",
   "expenses",
@@ -124,15 +134,27 @@ const getGrantableBranchIds = async (req, tenantId) => {
  * الفيتشرز اللي اليوزر الحالي يقدر يمنحها على فرع معيّن.
  * - super_admin / owner → كل الفيتشرز
  * - admin              → اللي هو واخدها على الفرع ده بالظبط
+ *
+ * ⚠ وكله مقصوص على اشتراك السنتر: الأونر مايقدرش يمنح موظفه
+ *   فيتشر السنتر مادفعش عليها — الشاشة كانت هتوريها والـ RBAC
+ *   هيرفض عند أول استخدام.
  */
 const getGrantableFeatures = (req, branchId) => {
-  if (FULL_ACCESS_ROLES.includes(req.user.role)) return [...ALLOWED_FEATURES];
+  const plan = req.tenantFeatures; // null = السوبر أدمن، مفيش سقف
+  const capped = (list) =>
+    plan === null ? list : list.filter((f) => plan.includes(f));
+
+  if (FULL_ACCESS_ROLES.includes(req.user.role)) {
+    return capped([...ALLOWED_FEATURES]);
+  }
 
   const access = (req.user.branchAccess || []).find(
     (ba) => ba.branchId === branchId,
   );
   // الممنوع على دوره هو مايقدرش يمنحه لحد تاني
-  return access ? effectiveFeatures(req.user.role, access.features) : [];
+  return capped(
+    access ? effectiveFeatures(req.user.role, access.features) : [],
+  );
 };
 
 /**
@@ -924,3 +946,5 @@ module.exports = {
   archiveUser,
   restoreUser,
 };
+
+

@@ -43,7 +43,10 @@ const createSemesterSchema = z.object({
     name: z.string().trim().min(1).max(150).optional(),
     names: z.array(z.string().trim().min(1).max(150)).max(50).optional(),
     year: yearField,
-    branch_id: idField,
+    // ⚠ اختياري ومتجاهَل: المرحلة بقت على مستوى السنتر.
+    //   سايبينه في السكيمة لأن الـ ApiClient بيحقنه في كل طلب،
+    //   و zod بيرفض أي مفتاح مش معرّف — بس مابقاش مطلوب.
+    branch_id: idField.optional(),
     tenant_id: idField.optional(),
   }),
 });
@@ -162,7 +165,12 @@ router.put(
 router.delete(
   "/enrollments/:id",
   validate(idParam),
-  requireRole("admin", "super_admin"),
+  // ⚠ كان admin/super_admin بس — والأونر مستثنى.
+  //
+  //   والنتيجة تناقض: الاستقبال يضيف مادة للطالب (الراوت اللي
+  //   فوق على STAFF)، وصاحب السنتر مايقدرش يشيلها. وأول ما
+  //   يحاول يعدّل مواد طالب كان بياخد ٤٠٣ من غير ما يفهم ليه.
+  requireRole(...MANAGERS),
   withNotify(removeEnrollment, ["students_updated"]),
 );
 

@@ -1,113 +1,33 @@
-// scripts/backfill-drawers.js
-//
-// بيربط الحركات المالية القديمة بدرجها. بيتشغّل مرة واحدة بعد
-// migration الـ drawer_id، وآمن لو اتشغّل أكتر من مرة (بيشتغل على
-// الصفوف اللي `drawer_id` بتاعها null بس).
-//
-//   node scripts/backfill-drawers.js
+-- كل حركة فلوس بتتربط بدرجها، مش بالوردية بس.
+--
+-- السبب: الأونر والأدمن بيتعاملوا بفلوس من غير وردية أصلاً، فلو
+-- الدرج مشتق من الوردية بتبقى فيه حركات من غير صندوق معروف —
+-- وأول جرد بعدها بيطلّع فرق باسم حد مالوش ذنب.
+--
+-- ⚠ العمود `NULL` بقصد: الحركات القديمة مالهاش درج معروف.
+--   `scripts/backfill-drawers.js` بيملاها بعد الهجرة دي.
+--
+-- ⚠ الملف ده كان **اتكتب فيه بالغلط** محتوى
+--   `scripts/backfill-drawers.js` (جافاسكريبت مكان الـSQL).
+--   الداتابيز اللي الهجرة اتسجّلت عليها قبل الغلطة ماحستش بحاجة،
+--   لكن أي داتابيز جديدة كانت بتقف هنا:
+--       ERROR: syntax error at or near "//"
+--   يعني أول نشر على سيرفر جديد كان هيفشل. السكريبت نفسه موجود
+--   في `scripts/` زي ما هو — مفيش حاجة ضاعت.
 
-const prisma = require("../src/config/db");
+-- AlterTable
+ALTER TABLE "payments" ADD COLUMN "drawer_id" INTEGER;
+ALTER TABLE "expenses" ADD COLUMN "drawer_id" INTEGER;
+ALTER TABLE "cash_transactions" ADD COLUMN "drawer_id" INTEGER;
 
-const MODELS = [
-  ["payment", "دفعات"],
-  ["expense", "مصروفات"],
-  ["cashTransaction", "حركات درج"],
-];
+-- CreateIndex
+CREATE INDEX "payments_drawer_id_created_at_idx" ON "payments"("drawer_id", "created_at");
+CREATE INDEX "expenses_drawer_id_created_at_idx" ON "expenses"("drawer_id", "created_at");
+CREATE INDEX "cash_transactions_drawer_id_type_created_at_idx" ON "cash_transactions"("drawer_id", "type", "created_at");
 
-(async () => {
-  const done = { payment: 0, expense: 0, cashTransaction: 0 };
-
-  // ── ١) من الوردية ────────────────────────────────────────
-  const shifts = await prisma.shift.findMany({
-    where: { drawer_id: { not: null } },
-    select: { id: true, drawer_id: true },
-  });
-
-  for (const s of shifts) {
-    for (const [model] of MODELS) {
-      const r = await prisma[model].updateMany({
-        where: { shift_id: s.id, drawer_id: null },
-        data: { drawer_id: s.drawer_id },
-      });
-      done[model] += r.count;
-    }
-  }
-  console.log("[١] من الوردية:", done);
-
-  // ── ٢) من الفرع — بس لو الفرع فيه درج شغّال واحد ─────────
-  //
-  // ⚠ لو الفرع فيه أكتر من درج، مفيش طريقة نعرف بيها الفلوس دخلت
-  //   أنهي صندوق. التخمين هنا أسوأ من الفراغ — هيطلّع فرق وهمي في
-  //   درج والتاني ينقص.
-  const fromBranch = { payment: 0, expense: 0, cashTransaction: 0 };
-  const skipped = [];
-
-  const branches = await prisma.branch.findMany({
-    select: { id: true, name: true },
-  });
-
-  for (const b of branches) {
-    const drawers = await prisma.cashDrawer.findMany({
-      where: { branch_id: b.id, is_active: true },
-      select: { id: true },
-    });
-
-    if (drawers.length !== 1) {
-      const pending = await Promise.all(
-        MODELS.map(([m]) =>
-          prisma[m].count({ where: { branch_id: b.id, drawer_id: null } })
-        )
-      );
-      const total = pending.reduce((a, n) => a + n, 0);
-      if (total > 0) {
-        skipped.push({ branch: b.name, drawers: drawers.length, rows: total });
-      }
-      continue;
-    }
-
-    for (const [model] of MODELS) {
-      const r = await prisma[model].updateMany({
-        where: { branch_id: b.id, drawer_id: null },
-        data: { drawer_id: drawers[0].id },
-      });
-      fromBranch[model] += r.count;
-    }
-  }
-  console.log("[٢] من الفرع:", fromBranch);
-
-  // ── ٣) نوع الدفعة ───────────────────────────────────────
-  const wallet = await prisma.payment.updateMany({
-    where: {
-      kind: "fee",
-      OR: [{ notes: "شحن محفظة" }, { receipt_number: { startsWith: "W-" } }],
-    },
-    data: { kind: "wallet_topup" },
-  });
-  console.log("[٣] اتعلّمت كشحن محفظة:", wallet.count);
-
-  // ── النتيجة ─────────────────────────────────────────────
-  const left = await Promise.all(
-    MODELS.map(([m]) => prisma[m].count({ where: { drawer_id: null } }))
-  );
-
-  console.log("\nلسه من غير درج:", {
-    payments: left[0],
-    expenses: left[1],
-    cash: left[2],
-  });
-
-  if (skipped.length) {
-    console.log(
-      "\n⚠ الفروع دي فيها أكتر من درج شغّال، فالحركات القديمة بتاعتها" +
-        " سيبتها من غير درج عن قصد — حدّدها بإيدك أو اعمل جرد للدروج:"
-    );
-    console.table(skipped);
-  }
-
-  if (left.every((n) => n === 0)) console.log("\n✓ تمام");
-
-  process.exit(0);
-})().catch((e) => {
-  console.error("فشل:", e.message);
-  process.exit(1);
-});
+-- AddForeignKey
+-- الدرج لو اتمسح، الحركة بتفضل موجودة من غير درج — الفلوس اتحركت
+-- فعلاً، فمينفعش تختفي من السجل.
+ALTER TABLE "payments" ADD CONSTRAINT "payments_drawer_id_fkey" FOREIGN KEY ("drawer_id") REFERENCES "cash_drawers"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "expenses" ADD CONSTRAINT "expenses_drawer_id_fkey" FOREIGN KEY ("drawer_id") REFERENCES "cash_drawers"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "cash_transactions" ADD CONSTRAINT "cash_transactions_drawer_id_fkey" FOREIGN KEY ("drawer_id") REFERENCES "cash_drawers"("id") ON DELETE SET NULL ON UPDATE CASCADE;

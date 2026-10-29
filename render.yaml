@@ -1,0 +1,55 @@
+# render.yaml — نشر الباك إند على Render
+#
+# ⚠ الخطة المجانية بتنيّم السيرفر بعد ١٥ دقيقة سكوت. أول طلب بعد
+#   النومة بياخد ٣٠–٥٠ ثانية (الطالب اللي بيفتح لينك الـQR هيستنى).
+#   للتجربة تمام، ولأول سنتر حقيقي رقّيها لـ Starter.
+#
+# الداتابيز **مش هنا** بقصد: داتابيز Render المجانية بتتمسح بعد
+# شهر. استعمل Neon (neon.tech) — مجانية وبتفضل.
+services:
+  - type: web
+    name: markazi-api
+    runtime: node
+    plan: free
+    region: frankfurt # أقرب حاجة لمصر في الخطة المجانية
+
+    # ⚠ `migrate deploy` مش `migrate dev`: بيطبّق الهجرات
+    #   الموجودة بس ومابيولّدش حاجة جديدة ولا بيسأل.
+    buildCommand: npm ci && npx prisma generate && npx prisma migrate deploy
+    startCommand: npm start
+
+    healthCheckPath: /api/health
+
+    envVars:
+      - key: NODE_ENV
+        value: production
+
+      # من Neon — خد "Pooled connection string"
+      - key: DATABASE_URL
+        sync: false
+
+      # Render بيولّده عشوائي أول مرة — مش محتاج تكتبه
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRES_IN
+        value: 7d
+
+      # ⚠ دول لازم يبقوا رابط الخدمة بعد أول نشر:
+      #     https://markazi-api.onrender.com
+      #   الأول هو اللي بيتحط في لينك التسجيل والـQR،
+      #   والتاني بيسمح للمتصفح ينادي الـAPI.
+      - key: PORTAL_BASE_URL
+        sync: false
+      - key: ALLOWED_ORIGINS
+        sync: false
+
+      # الباك أب المحلي مالوش لازمة هنا: هارد Render بيتمسح مع كل
+      # نشر، و`pg_dump` مش متسطّب أصلاً. باك أب Neon هو الأساس.
+      - key: BACKUP_ENABLED
+        value: "false"
+
+      # حساب المالك الأول — بيتعمل مرة واحدة بـ`npm run db:seed`
+      - key: SEED_ADMIN_EMAIL
+        sync: false
+      - key: SEED_ADMIN_PASSWORD
+        sync: false

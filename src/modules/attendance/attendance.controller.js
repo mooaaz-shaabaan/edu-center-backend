@@ -481,10 +481,11 @@ const handleRecord = async (req, res, next, { method, identifier }) => {
     let student;
     if (identifier === "qr") {
       student = await prisma.student.findFirst({
-        where: {
-          tenant_id: tenantId,
-          OR: [{ portal_code: body.qr_content }, { qr_code: body.qr_content }],
-        },
+        // ⚠ بـ `portal_code` بس. كان فيه فرع تاني بيقارن
+        //   الممسوح بـ `qr_code` — وده كان فيه **صورة PNG
+        //   بـ base64**، مستحيل الماسح يطلّعها. فرع ميت
+        //   بيكلفنا مسح عمود نصّي تقيل في كل تسجيل حضور.
+        where: { tenant_id: tenantId, portal_code: body.qr_content },
         include: { enrollments: { include: { course: true } } },
       });
     } else {
@@ -657,14 +658,54 @@ const handleRecord = async (req, res, next, { method, identifier }) => {
         ? ` — حصة ${session.startLabel}`
         : "";
 
+    // ⚠ لازم الرسالة تقول حصل إيه في الفلوس، مش «تم التسجيل» وبس.
+    //
+    //   تلات حالات مختلفة تمامًا كانت بتطلع بنفس البانر الأخضر:
+    //
+    //     طالب مش مفعّل له محفظة  → **لازم الموظف يقبض كاش**
+    //     طالب معاه رصيد          → اتخصم، مايقبضش حاجة
+    //     مادة سعرها صفر          → مجاني
+    //
+    //   في الزحمة الموظف بيمسح ويبص على البانر ثانية واحدة. لو
+    //   الحالتين شكلهم واحد، إما بيقبض من حد دافع من محفظته،
+    //   وإما بيسيب حد يعدّي من غير ما يدفع — والفرق ده بيبان
+    //   آخر اليوم في عجز الدرج، ومحدش يعرف جه منين.
+    const walletAfter = Number(student.wallet_balance || 0) - plan.walletDebit;
+    const money = (n) => `${Math.round(n * 100) / 100} ج`;
+
+    let payNote = "";
+    switch (plan.method) {
+      case "cash":
+        payNote = ` — اقبض ${money(plan.cashAmount)} كاش`;
+        break;
+      case "wallet":
+        payNote =
+          ` — اتخصم ${money(plan.walletDebit)} من المحفظة` +
+          ` (باقي ${money(walletAfter)})`;
+        break;
+      case "split":
+        payNote =
+          ` — اتخصم ${money(plan.walletDebit)} من المحفظة` +
+          ` · اقبض ${money(plan.cashAmount)} كاش`;
+        break;
+      default:
+        payNote = " — مجاني";
+    }
+
     return res.status(201).json({
       success: true,
-      message: `تم تسجيل حضور ${student.name}${sessionSuffix}`,
+      message: `تم تسجيل حضور ${student.name}${sessionSuffix}${payNote}`,
       data: {
         ...attendance,
         session_no: session.sessionNo,
         sessions_today: session.sessionsToday,
         session_start: session.startLabel,
+        // الواجهة بتلوّن البانر من دول — أصفر لما يبقى فيه كاش
+        // في إيد الموظف، أخضر لما يبقى خلاص
+        payment_mode: plan.method,
+        cash_due: plan.cashAmount,
+        wallet_debited: plan.walletDebit,
+        wallet_balance_after: plan.method === "none" ? null : walletAfter,
       },
     });
   } catch (err) {

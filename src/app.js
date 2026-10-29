@@ -46,19 +46,54 @@ const allowedOrigins = [
   .map(stripSlash)
   .filter(Boolean);
 
+const corsBase = {
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+  credentials: true, // ضروري عشان الكوكيز
+  maxAge: 86400,
+};
+
+/**
+ * الطلب جاي من صفحة السيرفر ده نفسه؟
+ *
+ * ⚠ ده اللي كان ناقص. بوابة الطلاب (public/student) بيقدّمها
+ *   **نفس** السيرفر، وبتنادي الـ API بمسار نسبي — يعني نفس الأصل.
+ *   المتصفح بيبعت `Origin` مع أي POST حتى لو نفس الأصل، والفحص
+ *   كان بيقارنه بقايمة ثابتة فيها IP واحد. فالطالب اللي بيفتح
+ *   اللينك بـ `localhost` أو بأي IP تاني للسيرفر كان بيترفض:
+ *
+ *     Not allowed by CORS — POST /api/portal/register/...
+ *
+ *   نفس الأصل أصلاً مش محتاج CORS — المتصفح بيسمح بيه لوحده.
+ *   فرفضه كان بق مش حماية.
+ */
+const isSameOrigin = (req, origin) => {
+  if (!req.headers.host) return false;
+  try {
+    return new URL(origin).host === req.headers.host;
+  } catch (_) {
+    return false;
+  }
+};
+
 app.use(
-  cors({
-    origin: (origin, callback) => {
-      if (!origin) return callback(null, true);
-      if (allowedOrigins.includes(stripSlash(origin))) {
-        return callback(null, true);
-      }
-      return callback(new Error("Not allowed by CORS"));
-    },
-    methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
-    allowedHeaders: ["Content-Type", "Authorization"],
-    credentials: true, // ضروري عشان الكوكيز
-    maxAge: 86400,
+  cors((req, callback) => {
+    const origin = req.headers.origin;
+
+    // مفيش Origin (تطبيق الديسكتوب، curl، السيرفر لنفسه) → عدّي
+    if (!origin) return callback(null, { ...corsBase, origin: true });
+
+    if (isSameOrigin(req, origin) ||
+        allowedOrigins.includes(stripSlash(origin))) {
+      return callback(null, { ...corsBase, origin: true });
+    }
+
+    // ⚠ بـ status: من غيره الـ errorHandler بيعتبرها خطأ سيرفر
+    //   ويرجّع 500 ويطبع stack كامل في اللوج لكل محاولة — ضوضاء
+    //   بتخفي الأخطاء الحقيقية. ده رفض متوقع، مش عطل.
+    const err = new Error("Not allowed by CORS");
+    err.status = 403;
+    return callback(err);
   }),
 );
 
@@ -204,10 +239,57 @@ app.use(
 );
 app.use("/api/drawers", require("./modules/drawers/drawers.routes"));
 
+// ── روابط الطالب العامة ───────────────────────────────────
+//
+// ⚠ الروابط دي مش جوّه النظام — دي اللي بتتحط في الـ QR وبتتبعت
+//   في واتساب، فاللي بيقراها ولي أمر مش موظف:
+//
+//     /register/TOKEN  →  صفحة طلب التسجيل
+//     /student         →  صفحة بيانات الطالب
+//
+//   كانت `/r/TOKEN` و `/student/me`. `/r` كان أقصر بـ٧ حروف بس
+//   محدش يعرف معناه، والرابط اللي مش مفهوم محدش بيدوس عليه.
+//   والتوكن بقى ٢٢ حرف بدل ٣٢ (شوف `newToken`)، فالـ QR طلع
+//   بنفس عدد المربعات بالظبط (٣٧) — الاسم الواضح مجاني.
+//
+//   كل الروابط القديمة لسه شغالة: `/r/` بيوجّه على الجديد تحت،
+//   و `?t=` و `.html` من الـ static.
+//
+//   ⚠ الفولدر مش مثبّت في الكود: الصفحات ممكن تتحط في أي فولدر
+//     جوه public، ولو المسار هنا مختلف عن الفولدر الحقيقي الـ QR
+//     بيوصل لصفحة 404 ومحدش هيعرف ليه.
+const PORTAL_DIR = (process.env.PORTAL_PATH || "student").replace(
+  /^\/+|\/+$/g,
+  "",
+);
+
+const portalPage = (file) => (req, res, next) =>
+  res.sendFile(
+    path.join(__dirname, "../public", PORTAL_DIR, file),
+    (err) => err && next(err),
+  );
+
+app.get("/register/:token", portalPage("register.html"));
+app.get("/student", portalPage("me.html"));
+
+// ⚠ أي QR اتطبع أو رسالة اتبعتت قبل كده فيها `/r/` — لازم تفضل
+//   شغالة. ٣٠١ عشان الرابط الجديد هو اللي يبان في المتصفح.
+//
+//   الشرط على شكل التوكن مش تزيين: من غيره الراوت بياخد أي حاجة
+//   في المسار ويحطها في ترويسة Location.
+app.get("/r/:token", (req, res, next) => {
+  if (!/^[A-Za-z0-9_-]{16,}$/.test(req.params.token)) return next();
+  res.redirect(301, `/register/${req.params.token}`);
+});
+
 // ── Static Files ──────────────────────────────────────────
 // بعد الـ API routes (عشان مايعترضش عليها) — مع cache headers
 app.use(
   express.static(path.join(__dirname, "../public"), {
+    // `/student/me` بتشتغل زي `/student/me.html` — الامتداد في
+    // الرابط حاجة من الملفات مش حاجة الطالب المفروض يشوفها.
+    // ⚠ الروابط القديمة بـ `.html` بتفضل شغالة زي ما هي.
+    extensions: ["html"],
     maxAge: isProd ? "1d" : 0,
     setHeaders: (res) => {
       res.setHeader("X-Content-Type-Options", "nosniff");

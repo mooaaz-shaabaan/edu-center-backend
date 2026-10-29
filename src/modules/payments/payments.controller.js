@@ -9,6 +9,10 @@ const {
 const { getAllowedBranchIds } = require("../../core/branchScope");
 const { resolveShiftId } = require("../../core/currentShift");
 const { resolveDrawerId, sendDrawerError } = require("../../core/drawerScope");
+const {
+  assertDrawerHasEnough,
+  loadDrawer,
+} = require("../../core/drawerBalance");
 
 const genReceipt = (prefix = "RCP") => {
   const rand = Math.floor(1000 + Math.random() * 9000);
@@ -69,13 +73,14 @@ const assertBranchVisible = (req, branchId) => {
  *   الدرج بقى بيتحدد لوحده: من الوردية لو فيه، وإلا من الفرع
  *   (أو المستخدم يختاره لو الفرع فيه أكتر من درج).
  */
-const resolveMoneyTarget = async (req, tenantId, rawShiftId) => {
+const resolveMoneyTarget = async (req, tenantId, rawShiftId, flow = "in") => {
   const shiftId = await resolveShiftId(prisma, req, rawShiftId);
   const drawerId = await resolveDrawerId(prisma, {
     tenantId,
     branchId: req.branchId,
     drawerId: req.validated?.body?.drawer_id ?? null,
     shiftId,
+    flow,
   });
   return { shiftId, drawerId };
 };
@@ -262,20 +267,37 @@ const cashTransaction = async (req, res, next) => {
       req,
       tenantId,
       shift_id,
+      type === "withdrawal" ? "out" : "in",
     );
 
-    const transaction = await prisma.cashTransaction.create({
-      data: {
-        tenant_id: tenantId, // ← الختم
-        shift_id: shiftId,
-        drawer_id: drawerId,
-        branch_id: req.branchId,
-        type,
-        amount,
-        reason: reason || null,
-        sync_status: "synced",
-        created_by: req.user.id,
-      },
+    // ⚠ جوه ترانزاكشن: الرصيد بيتحسب والحركة بتتكتب في نفس
+    //   اللحظة. لو اتحسب برّه، سحبين في نفس الثانية يعدّوا
+    //   الاتنين وكل واحد شايف الرصيد قبل التاني.
+    const transaction = await prisma.$transaction(async (tx) => {
+      // الإيداع بيزوّد الدرج — مالوش سقف. السحب بس هو اللي
+      // بيطلّع فلوس، وهو اللي كان بيوديه بالسالب.
+      if (type === "withdrawal" && drawerId) {
+        const drawer = await loadDrawer(tx, {
+          id: drawerId,
+          tenantId,
+          allowInactive: true,
+        });
+        await assertDrawerHasEnough(tx, drawer, amount);
+      }
+
+      return tx.cashTransaction.create({
+        data: {
+          tenant_id: tenantId, // ← الختم
+          shift_id: shiftId,
+          drawer_id: drawerId,
+          branch_id: req.branchId,
+          type,
+          amount,
+          reason: reason || null,
+          sync_status: "synced",
+          created_by: req.user.id,
+        },
+      });
     });
 
     res.status(201).json({
@@ -327,20 +349,35 @@ const createExpense = async (req, res, next) => {
       req,
       tenantId,
       shift_id,
+      "out",
     );
 
-    const expense = await prisma.expense.create({
-      data: {
-        tenant_id: tenantId, // ← الختم
-        shift_id: shiftId,
-        drawer_id: drawerId,
-        branch_id: req.branchId,
-        category,
-        description: description || null,
-        amount,
-        sync_status: "synced",
-        created_by: req.user.id,
-      },
+    // ⚠ المصروف بيخصم من نفس الدرج زي السحب بالظبط
+    //   (core/drawerBalance.js) — فلو حمينا السحب بس، الحفرة
+    //   تفضل مفتوحة من هنا.
+    const expense = await prisma.$transaction(async (tx) => {
+      if (drawerId) {
+        const drawer = await loadDrawer(tx, {
+          id: drawerId,
+          tenantId,
+          allowInactive: true,
+        });
+        await assertDrawerHasEnough(tx, drawer, amount);
+      }
+
+      return tx.expense.create({
+        data: {
+          tenant_id: tenantId, // ← الختم
+          shift_id: shiftId,
+          drawer_id: drawerId,
+          branch_id: req.branchId,
+          category,
+          description: description || null,
+          amount,
+          sync_status: "synced",
+          created_by: req.user.id,
+        },
+      });
     });
 
     res.status(201).json({

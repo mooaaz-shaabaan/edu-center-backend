@@ -150,12 +150,19 @@ const collectFinancials = async (req, from, to, branchId) => {
 
   transactions.sort((a, b) => new Date(a.at) - new Date(b.at));
 
+  // ⚠ إيداع الدرج وسحبه **تحويل**، مش ربح ولا خسارة.
+  //
+  //   الفلوس بتتنقل بين الدرج وبرّه (الخزنة · البنك · جيب صاحب
+  //   السنتر)، والسنتر ماكسبش ولا خسر جنيه. لما كانوا داخلين
+  //   الحسبة، إيداع ١٥٠٠٠ كان بيبقى «دخل»، وأول ما يتسحب تاني
+  //   يبقى «مصروف» — نفس الفلوس تتعدّ مرتين، وهامش الربح يطلع
+  //   ٣٪ على سنتر كل دخله من الطلاب ربح.
+  //
+  //   الدخل = اللي الطلاب دفعوه. المصروف = اللي اتصرف فعلاً.
+  //   حركة الدرج بترجع لوحدها في `cash_net` للي بيتابع الكاش.
   const totalIncome =
-    totals.payments +
-    totals.wallet_charges +
-    totals.attendance_cash +
-    totals.cash_deposits;
-  const totalExpenses = totals.expenses + totals.cash_withdrawals;
+    totals.payments + totals.wallet_charges + totals.attendance_cash;
+  const totalExpenses = totals.expenses;
 
   // الحضور — الخصم من المحفظة للعرض بس (مش بيدخل الدخل: اتحسب وقت الشحن)
   const countOf = (s) =>
@@ -177,16 +184,27 @@ const collectFinancials = async (req, from, to, branchId) => {
       total_income: totalIncome,
       total_expenses: totalExpenses,
       net: totalIncome - totalExpenses,
+      /// إيداع − سحب. بيأثر على اللي في الدرج، مش على الربح.
+      cash_net: totals.cash_deposits - totals.cash_withdrawals,
     },
     attendance: attendanceSummary,
     transactions,
   };
 };
 
+/// إيداع الدرج وسحبه: تنقيل فلوس، مش ربح ولا خسارة.
+///
+/// ⚠ أي حتة بتحسب دخل أو مصروف لازم تعدّي عليهم — الإجماليات
+///   والرسم وجدول الأيام. لو حتة نسيت، بتطلع صفحة أرقامها
+///   مابتجمعش على بعضها.
+const isTransfer = (t) =>
+  t.type === "cash_deposit" || t.type === "cash_withdrawal";
+
 // ── GET /api/reports/revenue ──────────────────────────────
 // الرسم البياني: دخل + مصروف لكل يوم في الشهر (daily) أو لكل شهر في السنة (monthly)
 //   كل الأيام/الشهور بترجع — حتى الفاضية (أصفار) عشان الرسم يبقى مظبوط
-//   الحسبة نفس الملخص وتقفيل الجلسة: الدخل = مدفوعات + إيداع، المصروف = مصروفات + سحب
+//   الحسبة نفس الملخص: الدخل = اللي الطلاب دفعوه، المصروف = اللي اتصرف.
+//   حركة الدرج (إيداع/سحب) مش في الرسم — دي تحويل مش ربح.
 //   amount = الدخل (فاضل عشان التوافق مع أي مكان بيقرا الحقل القديم)
 const getRevenue = async (req, res, next) => {
   try {
@@ -230,6 +248,8 @@ const getRevenue = async (req, res, next) => {
     }
 
     for (const t of transactions) {
+      if (isTransfer(t)) continue;
+
       const b = buckets.get(keyOf(new Date(t.at)));
       if (!b) continue;
       if (t.direction === "in") b.income += t.amount;
@@ -272,7 +292,10 @@ const getProfit = async (req, res, next) => {
     const tw = tenantWhere(req);
     const branchFilter = branch_id ? { branch_id: parseInt(branch_id) } : {};
 
-    const [payments, expenses, cashIn, cashOut] = await Promise.all([
+    // ⚠ الربح من غير حركة الدرج — شوف `collectFinancials`.
+    //   كان بيزوّد الإيداع على الدخل والسحب على المصروف، فالرقم
+    //   اللي في كارت «صافي الربح» كان بيتهزّ مع أي تنقيل فلوس.
+    const [payments, expenses] = await Promise.all([
       prisma.payment.aggregate({
         where: { ...tw, ...branchFilter, paid_at: { gte: from, lt: to } },
         _sum: { amount: true },
@@ -281,30 +304,10 @@ const getProfit = async (req, res, next) => {
         where: { ...tw, ...branchFilter, expense_date: { gte: from, lt: to } },
         _sum: { amount: true },
       }),
-      prisma.cashTransaction.aggregate({
-        where: {
-          ...tw,
-          ...branchFilter,
-          type: "deposit",
-          created_at: { gte: from, lt: to },
-        },
-        _sum: { amount: true },
-      }),
-      prisma.cashTransaction.aggregate({
-        where: {
-          ...tw,
-          ...branchFilter,
-          type: "withdrawal",
-          created_at: { gte: from, lt: to },
-        },
-        _sum: { amount: true },
-      }),
     ]);
 
-    const totalIncome =
-      Number(payments._sum.amount || 0) + Number(cashIn._sum.amount || 0);
-    const totalExpenses =
-      Number(expenses._sum.amount || 0) + Number(cashOut._sum.amount || 0);
+    const totalIncome = Number(payments._sum.amount || 0);
+    const totalExpenses = Number(expenses._sum.amount || 0);
 
     res.json({
       success: true,
@@ -370,8 +373,14 @@ const getSummary = async (req, res, next) => {
 
     if (period === "monthly") {
       // الشهري: إجمالي كل يوم
+      //
+      // ⚠ من غير التحويلات، زي الإجماليات فوق بالظبط. من غيرها
+      //   كان يوم فيه إيداع ١٥٠٠٠ وسحب ١٦٨٠١ يطلع «صافي -١٨٠١»
+      //   في جدول ماتحتهوش ولا جنيه دخل ولا مصروف حقيقي.
       const days = {};
       for (const t of transactions) {
+        if (isTransfer(t)) continue;
+
         const key = dayKey(new Date(t.at));
         if (!days[key])
           days[key] = { date: key, income: 0, expenses: 0, net: 0 };
@@ -547,7 +556,11 @@ const getRenewals = async (req, res, next) => {
 };
 
 // ── GET /api/reports/today ────────────────────────────────
-// الداشبورد: إيراد النهارده = إجمالي الدخل (نفس رقم تقفيل الجلسة)
+// الداشبورد: إيراد النهارده = اللي الطلاب دفعوه النهارده.
+//
+// ⚠ مش نفس رقم تقفيل الجلسة بقصد: تقفيل الجلسة بيتكلم عن
+//   **الدرج** فبيحسب الإيداع والسحب، وده بيتكلم عن **الدخل**.
+//   السؤالين مختلفين فالرقمين مختلفين.
 //   today_revenue فاضل بنفس الاسم عشان الفلاتر مايتكسرش
 const getTodayRevenue = async (req, res, next) => {
   try {

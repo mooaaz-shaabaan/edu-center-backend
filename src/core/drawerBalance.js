@@ -66,6 +66,13 @@ const KIND_LABEL = {
   other: "دفعة",
 };
 
+const COUNT_REASON = {
+  open: "استلام الدرج",
+  close: "تسليم الدرج",
+  handover: "تسليم بين موظفين",
+  audit: "جرد إداري",
+};
+
 /**
  * كل حركة على الدرج في قايمة واحدة مرتّبة بالوقت، وكل صف شايل
  * **مين عملها**.
@@ -73,11 +80,45 @@ const KIND_LABEL = {
  * `since` اختياري — من غيره بيرجّع من آخر جرد (اللي بيفسّر الرصيد
  * الحالي)، وبيه بيرجّع من أي تاريخ.
  */
-const drawerLedger = async (db, drawer, { limit = 100, since = null } = {}) => {
+/**
+ * مجموع الداخل والخارج في فترة — **من الداتابيز، مش من الصفوف
+ * المعروضة**.
+ *
+ * ⚠ الكشف بيعرض آخر 100 حركة بس. لو حسبنا الإجمالي بجمع
+ *   المعروض، الملخص بيكدب على الدرج اللي عليه حركة أكتر من
+ *   كده — ومحدش بياخد باله لأن الأرقام شكلها معقول.
+ */
+const drawerTotals = async (db, drawer, from) => {
+  const base = drawerMovementsWhere(drawer.id, from);
+
+  const [pay, dep, exp, wd] = await Promise.all([
+    db.payment.aggregate({ where: base, _sum: { amount: true } }),
+    db.cashTransaction.aggregate({
+      where: { ...base, type: "deposit" },
+      _sum: { amount: true },
+    }),
+    db.expense.aggregate({ where: base, _sum: { amount: true } }),
+    db.cashTransaction.aggregate({
+      where: { ...base, type: "withdrawal" },
+      _sum: { amount: true },
+    }),
+  ]);
+
+  return {
+    totalIn: round2(sumOf(pay) + sumOf(dep)),
+    totalOut: round2(sumOf(exp) + sumOf(wd)),
+  };
+};
+
+const drawerLedger = async (
+  db,
+  drawer,
+  { limit = 100, since = null, opening = null } = {},
+) => {
   const from = since ?? drawer.last_counted_at ?? drawer.created_at;
   const base = drawerMovementsWhere(drawer.id, from);
 
-  const [payments, expenses, cash] = await Promise.all([
+  const [payments, expenses, cash, counts] = await Promise.all([
     db.payment.findMany({
       where: base,
       orderBy: { created_at: "desc" },
@@ -122,6 +163,27 @@ const drawerLedger = async (db, drawer, { limit = 100, since = null } = {}) => {
         created_by_user: USER_PICK,
       },
     }),
+    // ⚠ الجرد حركة على الدرج زي أي حركة — بل أهمها.
+    //
+    //   هو اللي **بيصفّر الدفتر**: لما حد يعدّ ويلاقي رقم غير
+    //   اللي السيستم شايفه، الفرق بيتشال والدرج بيكمّل من
+    //   الرقم المعدود. وكان مش ظاهر في الكشف خالص — فاللي
+    //   بيدقّق بيمشي على الحركات ويوصل لرقم غير اللي قدامه
+    //   ومايعرفش العجز جه منين.
+    db.drawerCount.findMany({
+      where: { drawer_id: drawer.id, counted_at: { gt: from } },
+      orderBy: { counted_at: "desc" },
+      take: limit,
+      select: {
+        id: true,
+        reason: true,
+        counted: true,
+        note: true,
+        counted_at: true,
+        shift_id: true,
+        user: USER_PICK,
+      },
+    }),
   ]);
 
   const rows = [
@@ -153,6 +215,22 @@ const drawerLedger = async (db, drawer, { limit = 100, since = null } = {}) => {
       shift_id: e.shift_id,
       at: e.created_at,
     })),
+    ...counts.map((c) => ({
+      id: `count-${c.id}`,
+      kind: "count",
+      label: "جرد",
+      // الاتجاه بيتحدّد بعدين من فرق التسوية الحقيقي
+      direction: null,
+      amount: null,
+      countedTo: Number(c.counted),
+      subject: COUNT_REASON[c.reason] ?? "جرد",
+      note: c.note,
+      ref: null,
+      by: c.user?.name ?? null,
+      by_id: c.user?.id ?? null,
+      shift_id: c.shift_id,
+      at: c.counted_at,
+    })),
     ...cash.map((c) => ({
       id: `cash-${c.id}`,
       kind: c.type === "deposit" ? "deposit" : "withdrawal",
@@ -173,13 +251,42 @@ const drawerLedger = async (db, drawer, { limit = 100, since = null } = {}) => {
 
   // الرصيد الجاري بعد كل حركة — بنحسب من الأقدم للأحدث وبعدين
   // نرجّع الترتيب، عشان الصف الأول (الأحدث) يطلع بالرصيد الحالي
-  let running = Number(drawer.last_counted_balance);
+  //
+  // ⚠ البداية بتتبعت من برّه. كانت `last_counted_balance` على
+  //   طول — وده غلط في كشف «من أول الدرج»: بيعيد الحركة من
+  //   الصفر فالمفروض يبدأ من صفر، مش من رقم جرد حصل في النص.
+  let running = opening !== null ? Number(opening) : Number(drawer.last_counted_balance);
+
+  let totalIn = 0;
+  let totalOut = 0;
+
   const ordered = [...trimmed].reverse().map((r) => {
+    if (r.kind === "count") {
+      // ⚠ الجرد **بيحطّ** الرصيد مش بيزوّده. والتسوية هي الفرق
+      //   بين اللي اتعدّ واللي الدفتر وصل له — مش `variance`
+      //   المسجّل (ده الفرق عن حساب السيستم وقتها، ومش لازم
+      //   يساوي مشي الكشف من الأول).
+      const adjust = round2(r.countedTo - running);
+      running = r.countedTo;
+      if (adjust > 0) totalIn = round2(totalIn + adjust);
+      else totalOut = round2(totalOut - adjust);
+
+      return {
+        ...r,
+        direction: adjust >= 0 ? "in" : "out",
+        amount: Math.abs(adjust),
+        balance_after: running,
+      };
+    }
+
+    if (r.direction === "in") totalIn = round2(totalIn + r.amount);
+    else totalOut = round2(totalOut + r.amount);
+
     running = round2(running + (r.direction === "in" ? r.amount : -r.amount));
     return { ...r, balance_after: running };
   });
 
-  return ordered.reverse();
+  return { rows: ordered.reverse(), totalIn, totalOut, closing: running };
 };
 
 /** بيجيب الدرج ويتأكد إنه في نفس السنتر وشغّال */
@@ -314,10 +421,48 @@ const lastCountOf = (db, drawerId) =>
     },
   });
 
+/**
+ * الدرج فيه كفاية للمبلغ ده؟
+ *
+ * ⚠ قبل كده ماكانش فيه أي فحص: سحب ١٥١٥١ ج من درج فيه ١٣٤٩٩ ج
+ *   كان بيعدّي عادي، والدرج يروح بالسالب. ومن ساعتها كل رقم
+ *   بعده مبني على فلوس ماكانتش موجودة — الإيرادات والأرباح
+ *   والتقارير كلها.
+ *
+ *   الدفتر هو اللي بيحدد المسموح يخرج. ولو الدرج فيه أكتر من
+ *   اللي الدفتر حاسبه فعلاً، الطريق الصح جرد — بيتسجّل باسم
+ *   اللي عدّه وبيسيب أثر — مش إننا نسيب السحب يعدّي من غير حساب.
+ *
+ * بيرمي `INSUFFICIENT_DRAWER` ومعاه الرصيد عشان الشاشة تعرضه.
+ */
+const assertDrawerHasEnough = async (db, drawer, amount) => {
+  const needed = round2(Number(amount) || 0);
+  if (needed <= 0) return;
+
+  const available = await expectedBalance(db, drawer);
+  if (needed <= available) return;
+
+  const err = new Error(
+    `الدرج "${drawer.name}" فيه ${available} ج بس، ومش كفاية ` +
+      `لـ ${needed}.`,
+  );
+  err.status = 400;
+  err.code = "INSUFFICIENT_DRAWER";
+  err.data = {
+    drawer: { id: drawer.id, name: drawer.name },
+    available,
+    requested: needed,
+    shortfall: round2(needed - available),
+  };
+  throw err;
+};
+
 module.exports = {
   round2,
+  assertDrawerHasEnough,
   expectedBalance,
   drawerLedger,
+  drawerTotals,
   loadDrawer,
   expectedMatches,
   expectedChangedError,

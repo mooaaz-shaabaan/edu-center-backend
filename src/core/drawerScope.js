@@ -40,13 +40,16 @@ const sendDrawerError = (res, err, next) => {
  *   ٤) أكتر من درج ومفيش وردية ولا اختيار → DRAWER_REQUIRED ومعاه
  *      القايمة، والشاشة تخلّيه يختار
  *
+ * `flow` بيحدّد شكل السؤال بس: "in" فلوس داخلة (دفعة · إيداع)،
+ * "out" فلوس طالعة (سحب · مصروف).
+ *
  * ⚠ ملاحظة مقصودة: مفيش "من غير درج". أي جنيه بيدخل السنتر أو يخرج
  *   منه لازم يكون ليه صندوق معروف، وإلا الجرد الجاي هيطلّع فرق باسم
  *   حد مالوش ذنب.
  */
 const resolveDrawerId = async (
   db,
-  { tenantId, branchId, drawerId = null, shiftId = null },
+  { tenantId, branchId, drawerId = null, shiftId = null, flow = "in" },
 ) => {
   // ١) درج الوردية
   if (shiftId) {
@@ -94,9 +97,17 @@ const resolveDrawerId = async (
     );
   }
 
-  throw codedError(400, "DRAWER_REQUIRED", "اختار الدرج اللي الفلوس هتدخله.", {
-    drawers: actives,
-  });
+  // ⚠ الاتجاه مش تفصيلة: «الفلوس هتدخله» على سحب أو مصروف كلام
+  //   مقلوب — الموظف بيقراه وهو بيحاول يطلّع فلوس فيفتكر إنه
+  //   داخل على عملية تانية خالص.
+  throw codedError(
+    400,
+    "DRAWER_REQUIRED",
+    flow === "out"
+      ? "اختار الدرج اللي الفلوس هتطلع منه."
+      : "اختار الدرج اللي الفلوس هتدخله.",
+    { drawers: actives },
+  );
 };
 
 module.exports = { resolveDrawerId, codedError, sendDrawerError };

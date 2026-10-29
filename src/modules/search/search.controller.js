@@ -20,7 +20,6 @@ const globalSearch = async (req, res, next) => {
           { phone: { contains: query } },
           { parent_phone: { contains: query } },
           { portal_code: query },
-          { qr_code: query },
         ],
       },
       select: { id: true },

@@ -111,6 +111,29 @@ model Tenant {
   created_at  DateTime @default(now())
   updated_at  DateTime @updatedAt
 
+  // ── الاشتراك ────────────────────────────────────────────
+  //
+  // رقم واتس السنتر — بيتفتح عليه مسج التجديد والتفعيل
+  phone String?
+
+  // عنوان السنتر — بيانات تواصل بس
+  address String?
+
+  /// الفيتشرز اللي السنتر دافع عليها، CSV زي user_branch_access.features.
+  ///
+  /// ⚠ الافتراضي كل الفيتشرز: السناتر اللي موجودة قبل الـ migration
+  ///   لازم تفضل شغالة بكل حاجة زي ما هي.
+  ///
+  /// ده سقف للسنتر كله — صلاحيات الموظف بتتقاطع معاه، فلو السنتر
+  /// مادفعش على «التقارير» مفيش حد في السنتر يشوفها ولا الأونر.
+  features String @default("students,registrations,attendance,courses,semesters,exams,schedules,payments,expenses,reports,shifts,users,branches")
+
+  /// آخر يوم في الاشتراك — null = مفتوح بلا نهاية (السناتر القديمة)
+  subscription_ends_at DateTime?
+
+  /// الفترة الحالية تجريبية؟ (بتأثر على نص الرسايل بس)
+  is_trial Boolean @default(false)
+
   // كل الجداول بترجع للسنتر
   branches          Branch[]
   users             User[]
@@ -139,6 +162,8 @@ model Tenant {
   cash_drawers      CashDrawer[]   // ← جديد
   drawer_counts     DrawerCount[]  // ← جديد
 
+  // الكرون اليومي بيدوّر على اللي خلص اشتراكه
+  @@index([subscription_ends_at])
   @@map("tenants")
 }
 
@@ -464,7 +489,11 @@ model Student {
   phone           String
   parent_phone    String
   alt_phone       String?
-  qr_code         String?  @unique
+  // ⚠ مافيش `qr_code`. صورة الكود مشتقّة بالكامل من
+  //   `portal_code` فبتتولّد عند الطلب. تخزينها كان بيكلّف
+  //   ١٣ ألف بايت لكل طالب، وكان بيجمّد شكل الكود عند
+  //   لحظة الإنشاء — طالب اتسجّل من سنة كان هيفضل بكارت
+  //   بالشكل القديم للأبد.
   portal_code     String   @unique
   branch_id       Int
   is_active       Boolean  @default(true)

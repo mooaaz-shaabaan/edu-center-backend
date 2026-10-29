@@ -6,6 +6,7 @@ validateEnv();
 
 const app = require("./app");
 const prisma = require("./config/db");
+const { closeAll: closeStreams } = require("./core/sse");
 
 const PORT = process.env.PORT || 3000;
 let server;
@@ -56,6 +57,12 @@ async function shutdown(signal, exitCode = 0) {
   }, 10000);
   forceTimer.unref();
 
+  // ⚠ اقفل اتصالات الـSSE الأول — دي مابتخلصش لوحدها، و
+  //   `server.close()` بتستناها فبتعلّق. شوف `closeAll` في
+  //   `core/sse.js`.
+  const streams = closeStreams();
+  if (streams > 0) console.log(`📡 ${streams} SSE connection(s) closed`);
+
   // وقّف استقبال requests جديدة، واستنى اللي شغال يخلص
   if (server) {
     await new Promise((resolve) => {
@@ -63,6 +70,11 @@ async function shutdown(signal, exitCode = 0) {
         console.log("🔌 HTTP server closed");
         resolve();
       });
+
+      // ⚠ وده كمان: `res.end()` بينهي الرد بس السوكت بيفضل
+      //   محجوز للاستعمال تاني (keep-alive)، والسوكت الخامل ده
+      //   لوحده كفاية إنه يأخّر الإغلاق. السطر ده بيسيّبه.
+      server.closeIdleConnections();
     });
   }
 

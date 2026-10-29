@@ -6,6 +6,7 @@ const { z } = require("zod");
 const auth = require("../../middlewares/auth");
 const {
   requireRole,
+  STAFF,
   MANAGERS,
   requireBranchAccess,
 } = require("../../middlewares/rbac");
@@ -96,17 +97,23 @@ router.use(auth);
 // ── الروابط ───────────────────────────────────────────────
 // ⚠ لازم تبقى قبل "/:id/..." وإلا "link" هتتقري كـ id
 //
-// المدير بس — الرابط ده هو الباب اللي أي حد بره السنتر ممكن
-// يدخل منه، وتدويره بيبطّل الـ QR المطبوع على الديسك فوراً.
-// مش شغل موظف استقبال.
+// القراية والتغيير مش نفس الحاجة هنا:
+//
+//   الـ QR نفسه بيتطبع وبيتحط على الديسك قدام موظف الاستقبال،
+//   وهو اللي بيوريه للطالب — فمنعه من **شوفه** مامنعش حد من
+//   حاجة، بس خلّى الشاشة فاضية في وشه.
+//
+//   اللي خطر هو التدوير والإيقاف: التدوير بيبطّل كل QR مطبوع
+//   في نفس اللحظة. ده فضل للمديرين.
 router.get(
   "/link",
   validate(branchQuery),
   validateBranch({ required: true }),
-  requireRole(...MANAGERS),
+  requireRole(...STAFF),
   getLink,
 );
 
+// ⚠ المديرين بس — ده بيبطّل كل QR مطبوع فورًا
 router.post(
   "/link/rotate",
   validate(branchQuery),

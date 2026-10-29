@@ -196,7 +196,6 @@ const create = async (req, res, next) => {
     }
 
     const portalCode = generatePortalCode();
-    const qrCode = await generateQRCode(portalCode);
 
     const student = await prisma.student.create({
       data: {
@@ -207,7 +206,6 @@ const create = async (req, res, next) => {
         alt_phone: alt_phone || null,
         branch_id,
         portal_code: portalCode,
-        qr_code: qrCode,
         shift_id: shift_id || null,
         wallet_enabled: wallet_enabled === true,
         wallet_balance: 0,
@@ -219,7 +217,6 @@ const create = async (req, res, next) => {
         parent_phone: true,
         alt_phone: true,
         portal_code: true,
-        qr_code: true,
         branch_id: true,
         is_active: true,
         created_at: true,
@@ -438,14 +435,27 @@ const getQR = async (req, res, next) => {
 
     const student = await prisma.student.findUnique({
       where: { id },
-      select: { qr_code: true, name: true, tenant_id: true },
+      select: { portal_code: true, name: true, tenant_id: true },
     });
 
     assertSameTenant(req, student);
 
+    // ⚠ بنولّدها دلوقتي، مابنقراش المخزّن في `qr_code`.
+    //
+    //   الصورة مشتقّة بالكامل من `portal_code` — يعني المخزّن
+    //   نسخة تانية من نفس المعلومة، وأي تغيير في شكل الكود
+    //   (العلامة في النص، مستوى التصحيح، المقاس) مابيوصلش
+    //   للطلاب القدام أبدًا. الطالب اللي اتسجّل من سنة يفضل
+    //   كارته بالشكل القديم للأبد.
+    //
+    //   التوليد رخيص (ميلي ثانية) والنداء ده بيحصل لما الموظف
+    //   يفتح شيت طالب واحد — مش في قايمة.
     res.json({
       success: true,
-      data: { name: student.name, qr_code: student.qr_code },
+      data: {
+        name: student.name,
+        qr_code: await generateQRCode(student.portal_code),
+      },
     });
   } catch (err) {
     next(err);

@@ -756,8 +756,7 @@
             <div class="qrbox">
               <div class="qr" id="qrWrap"><img id="qrImg" alt="QR" /></div>
               <div class="txt">
-                ورّي الكود ده عند الباب والموظف يمسحه — أسرع من البحث بالاسم
-                ومفيش غلط في الطالب.
+                الرمز الخاص بك أستخدمه عند الدخول الي القاعة
               </div>
             </div>
             <div class="acts">
@@ -1730,7 +1729,9 @@
             "الاسم: " + (data.name || ""),
             "كود الحضور: " + (data.portal_code || ""),
             "",
-            "بياناتي: " + location.origin + location.pathname,
+            // ⚠ الرابط الواضح، مش اللي الطالب داخل منه: لو جاي
+            //   من `/student/me` القديم مانورّثوش لحد تاني.
+            "بياناتي: " + location.origin + "/student",
           ].join("\n");
 
           window.open(

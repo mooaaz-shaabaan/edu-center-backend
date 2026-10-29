@@ -5,7 +5,32 @@ const bcrypt = require("bcryptjs");
 
 const prisma = new PrismaClient();
 
+/// ⚠ الحارس ده هو الفرق بين «سيرفر تجربة» و«حساب مفتوح للكل».
+///   الباسوردات الافتراضية مكتوبة في الملف ده وفي Git، فلو السيرفر
+///   على الإنترنت وحد شغّل الـseed من غير ما يحط باسورد، الحساب
+///   بتاعك بيبقى معروف لأي حد.
+function assertSafeInProduction() {
+  if (process.env.NODE_ENV !== "production") return;
+
+  const missing = ["SEED_ADMIN_EMAIL", "SEED_ADMIN_PASSWORD"].filter(
+    (k) => !process.env[k],
+  );
+  if (missing.length) {
+    console.error(
+      `\n❌ مينفعش تعمل seed على سيرفر إنتاج من غير: ${missing.join(" و ")}` +
+        `\n   حطهم في متغيرات البيئة وشغّل تاني.\n`,
+    );
+    process.exit(1);
+  }
+
+  if (String(process.env.SEED_ADMIN_PASSWORD).length < 10) {
+    console.error("\n❌ الباسورد قصير — ١٠ حروف على الأقل.\n");
+    process.exit(1);
+  }
+}
+
 async function main() {
+  assertSafeInProduction();
   console.log("🌱 Seeding database...");
 
   // ── 1) أنشئ أول سنتر (تجريبي) ─────────────────────────
@@ -35,8 +60,12 @@ async function main() {
 
   // ── 3) أنشئ حساب super_admin (انت) ─────────────────────
   // الـ super_admin مش تابع لسنتر (tenant_id = null) — بيدير الكل
-  const SUPER_ADMIN_EMAIL = "owner@system.com";
-  const SUPER_ADMIN_PASSWORD = "owner123"; // ← غيّره فورًا بعد أول login
+  //
+  // ⚠ الباسورد بييجي من البيئة على السيرفر. القيم المكتوبة هنا
+  //   للتطوير المحلي بس — وهي موجودة في Git، يعني أي حد قرا
+  //   المستودع يعرفها. السيرفر العام بيرفض يشتغل بيها (تحت).
+  const SUPER_ADMIN_EMAIL = process.env.SEED_ADMIN_EMAIL || "owner@system.com";
+  const SUPER_ADMIN_PASSWORD = process.env.SEED_ADMIN_PASSWORD || "22992921o";
 
   const hashedPassword = await bcrypt.hash(SUPER_ADMIN_PASSWORD, 12);
 
@@ -55,8 +84,10 @@ async function main() {
   console.log(`✅ Super Admin created: ${superAdmin.email}`);
 
   // ── 4) أنشئ admin للسنتر التجريبي ──────────────────────
-  const TENANT_ADMIN_EMAIL = "admin@admin.com";
-  const TENANT_ADMIN_PASSWORD = "admin123"; // ← غيّره فورًا
+  const TENANT_ADMIN_EMAIL =
+    process.env.SEED_TENANT_ADMIN_EMAIL || "admin@admin.com";
+  const TENANT_ADMIN_PASSWORD =
+    process.env.SEED_TENANT_ADMIN_PASSWORD || "admin123";
 
   const tenantAdminPass = await bcrypt.hash(TENANT_ADMIN_PASSWORD, 12);
 

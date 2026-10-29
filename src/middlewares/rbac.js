@@ -30,6 +30,14 @@ const effectiveFeatures = (role, features) => {
   return blocked.length ? list.filter((f) => !blocked.includes(f)) : list;
 };
 
+/// أسماء الرتب بالعربي — عشان الرسالة تقول للمستخدم هو مين
+const ROLE_AR = {
+  super_admin: "مالك النظام",
+  owner: "صاحب السنتر",
+  admin: "المدير",
+  receptionist: "موظف الاستقبال",
+};
+
 const deny = (res, message, extra = {}) =>
   res.status(403).json({ success: false, message, ...extra });
 
@@ -70,10 +78,18 @@ const requireRole = (...allowedRoles) => {
     );
 
     if (!isAllowed) {
+      // ⚠ الرسالة كانت إنجليزية وعامة: «Forbidden. You don't have
+      //   permission». المستخدم بيشوفها جوه ديالوج عربي، ومش عارف
+      //   إن السبب رتبته — فبيفتكر إن فيه حاجة ناقصة في الفورم
+      //   وبيفضل يحاول.
       return deny(
         res,
-        "Forbidden. You don't have permission to perform this action.",
-        { requiredRoles: allowedRoles, yourRole: req.user.role },
+        `العملية دي مش من صلاحيات ${ROLE_AR[userRole] ?? "حسابك"}.`,
+        {
+          code: "ROLE_FORBIDDEN",
+          requiredRoles: allowedRoles,
+          yourRole: req.user.role,
+        },
       );
     }
 
@@ -92,9 +108,33 @@ const requireRole = (...allowedRoles) => {
  * مهم: الكنترولر لازم يفلتر بـ req.allowedBranchIds لما مفيش branch_id محدد،
  * وإلا اليوزر هيشوف فروع مش بتاعته.
  */
+/**
+ * الفيتشر دي في اشتراك السنتر؟
+ *
+ * ⚠ ده **فوق** الأدوار كلها: سنتر مادفعش على «التقارير» مفيش حد
+ *   فيه يفتحها، ولا صاحب السنتر نفسه. الفحص ده لازم ييجي قبل
+ *   FULL_ACCESS_ROLES، وإلا الأونر بيعدّي من فوق الاشتراك.
+ *
+ *   `req.tenantFeatures === null` → السوبر أدمن، مالوش سقف.
+ */
+const inTenantPlan = (req, feature) =>
+  req.tenantFeatures === null || req.tenantFeatures.includes(feature);
+
+const denyNotInPlan = (res, feature) =>
+  res.status(403).json({
+    success: false,
+    code: "FEATURE_NOT_IN_PLAN",
+    message: "الخدمة دي مش في اشتراك السنتر.",
+    requiredFeature: feature,
+  });
+
 const requireBranchAccess = (requiredFeature) => {
   return (req, res, next) => {
     if (!req.user) return unauthorized(res);
+
+    if (!inTenantPlan(req, requiredFeature)) {
+      return denyNotInPlan(res, requiredFeature);
+    }
 
     const branchId = resolveBranchId(req);
 
@@ -152,6 +192,9 @@ const requireBranchAccess = (requiredFeature) => {
 const requireMultipleFeatures = (...requiredFeatures) => {
   return (req, res, next) => {
     if (!req.user) return unauthorized(res);
+
+    const missing = requiredFeatures.find((f) => !inTenantPlan(req, f));
+    if (missing) return denyNotInPlan(res, missing);
 
     const branchId = resolveBranchId(req);
 
@@ -253,6 +296,7 @@ module.exports = {
   FULL_ACCESS_ROLES,
   FEATURES_BLOCKED_BY_ROLE,
   effectiveFeatures,
+  inTenantPlan,
   resolveBranchId,
   requireRole,
   requireBranchAccess,

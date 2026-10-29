@@ -195,11 +195,19 @@ const getDrawerLedger = async (req, res, next) => {
     });
     assertBranchAllowed(req, drawer.branch_id);
 
-    const [rows, expected] = await Promise.all([
+    // ⚠ «من أول الدرج» معناها إعادة الحركة من الصفر — فالبداية
+    //   صفر، مش رقم جرد حصل في النص.
+    // ⚠ «من أول الدرج» معناها إعادة الحركة من الصفر — فالبداية
+    //   صفر، مش رقم جرد حصل في النص.
+    const fromStart = since === "all";
+    const cap = limit || 100;
+    const opening = fromStart ? 0 : Number(drawer.last_counted_balance);
+
+    const [ledger, expected] = await Promise.all([
       drawerLedger(prisma, drawer, {
-        limit: limit || 100,
-        // من غيره بيبدأ من آخر جرد — وده اللي بيفسّر الرصيد الحالي
-        since: since === "all" ? new Date(0) : null,
+        limit: cap,
+        since: fromStart ? new Date(0) : null,
+        opening,
       }),
       expectedBalance(prisma, drawer),
     ]);
@@ -209,9 +217,15 @@ const getDrawerLedger = async (req, res, next) => {
       data: {
         drawer,
         expected,
-        since: since === "all" ? null : drawer.last_counted_at,
-        opening: Number(drawer.last_counted_balance),
-        movements: rows,
+        since: fromStart ? null : drawer.last_counted_at,
+        opening,
+        // ⚠ من نفس المشي اللي بيطلّع الصفوف — عشان الملخص
+        //   يتصالح مع آخر رصيد في الكشف بالظبط
+        total_in: ledger.totalIn,
+        total_out: ledger.totalOut,
+        closing: ledger.closing,
+        truncated: ledger.rows.length >= cap,
+        movements: ledger.rows,
       },
     });
   } catch (err) {

@@ -12,18 +12,20 @@ const { getAllowedBranchIds } = require("../../core/branchScope");
 const { notify } = require("../../core/sse");
 
 // ── مساعدات ───────────────────────────────────────────────
-const newToken = () => crypto.randomBytes(24).toString("base64url");
+/// ⚠ ١٦ بايت = ٢٢ حرف base64url = ١٢٨ بت عشوائية — أكتر من
+///   الكفاية لرابط تسجيل. كان ٢٤ بايت (٣٢ حرف)، والعشر حروف
+///   الزيادة كانت بتكبّر الـ QR أربع مربعات من غير أي فايدة.
+///   التوكنات القديمة في الداتابيز لسه شغالة زي ما هي.
+const newToken = () => crypto.randomBytes(16).toString("base64url");
 
-/// الرابط اللي بيتحط في الـ QR.
+/// الرابط اللي بيتحط في الـ QR وبيتبعت للطالب.
 ///
-/// ⚠ المسار مش مثبّت في الكود: الصفحات ممكن تتحط في أي فولدر
-///   جوه public، ولو المسار هنا مختلف عن الفولدر الحقيقي الـ QR
-///   بيوصل لصفحة 404 ومحدش هيعرف ليه.
-const PORTAL_PATH = "/" + (process.env.PORTAL_PATH || "student").replace(/^\/+|\/+$/g, "");
-
+/// ⚠ `/register/` مش `/r/` — اللي بيستلم الرابط ولي أمر، ولازم
+///   يبان له هو رايح فين قبل ما يدوس. الراوت في app.js بيقدّم
+///   الصفحة، و `/r/` القديم بيوجّه عليه.
 const linkUrl = (token) => {
   const base = (process.env.PORTAL_BASE_URL || "").replace(/\/+$/, "");
-  return `${base}${PORTAL_PATH}/register.html?t=${token}`;
+  return `${base}/register/${token}`;
 };
 
 /// الموظف مسموح له بالفرع ده؟
@@ -223,7 +225,6 @@ const approveOne = async (req, tenantId, id) => {
   try {
     const student = await prisma.$transaction(async (tx) => {
       const portalCode = await reservePortalCode(tx);
-      const qrCode = await generateQRCode(portalCode);
 
       const created = await tx.student.create({
         data: {
@@ -234,7 +235,6 @@ const approveOne = async (req, tenantId, id) => {
           parent_phone: reg.parent_phone,
           alt_phone: reg.alt_phone,
           portal_code: portalCode,
-          qr_code: qrCode,
           wallet_enabled: false,
           wallet_balance: 0,
         },
@@ -243,7 +243,6 @@ const approveOne = async (req, tenantId, id) => {
           name: true,
           phone: true,
           portal_code: true,
-          qr_code: true,
           branch_id: true,
         },
       });

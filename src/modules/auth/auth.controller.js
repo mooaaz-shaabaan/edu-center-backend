@@ -10,6 +10,45 @@ const {
   closeUserStreams,
 } = require("../../core/session");
 const { notify } = require("../../core/sse");
+const {
+  publicStatus,
+  subscriptionStatus,
+  parseFeatures: parseTenantFeatures,
+} = require("../../core/subscription");
+
+/** ٢٠ أكتوبر ٢٠٢٦ */
+const arDate = (d) =>
+  new Intl.DateTimeFormat("ar-EG", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  }).format(new Date(d));
+
+/**
+ * اشتراك السنتر وخدماته، في رد اللوجن و/auth/me.
+ *
+ * ⚠ البرنامج بيبني القايمة الجانبية من `tenant_features`: الفيتشر
+ *   اللي السنتر مادفعش عليها مالهاش عنصر في القايمة من أصله —
+ *   والـ RBAC بيرفضها كمان لو حد جرب يفتحها بالـ URL.
+ *
+ *   السوبر أدمن مالوش سنتر → كل الحقول null والبرنامج مايقيّدش حاجة.
+ */
+const tenantPlan = (tenant) => {
+  if (!tenant) {
+    return {
+      tenant_features: null,
+      subscription_ends_at: null,
+      subscription_state: null,
+      subscription_days_left: null,
+      subscription_grace_days: null,
+      is_trial: false,
+    };
+  }
+  return {
+    tenant_features: parseTenantFeatures(tenant.features),
+    ...publicStatus(tenant),
+  };
+};
 
 // ── Helpers: توليد الـ Tokens ─────────────────────────────
 const generateAccessToken = (user) => {
@@ -75,7 +114,15 @@ const login = async (req, res, next) => {
       where: { email: email.toLowerCase().trim() },
       include: {
         tenant: {
-          select: { id: true, slug: true, is_active: true, email_domain: true },
+          select: {
+            id: true,
+            slug: true,
+            is_active: true,
+            email_domain: true,
+            features: true,
+            subscription_ends_at: true,
+            is_trial: true,
+          },
         },
         branch_access: BRANCH_ACCESS_SELECT,
       },
@@ -116,6 +163,19 @@ const login = async (req, res, next) => {
         return res.status(403).json({
           success: false,
           message: "Your center account is inactive. Please contact support.",
+        });
+      }
+
+      // ⚠ الاشتراك بيتفحص هنا كمان مش في الـ middleware بس:
+      //   اللوجن مابيعدّيش على الـ middleware، فمن غير الفحص ده
+      //   المستخدم كان بيدخل عادي وبعدين كل طلب يرجع ٤٠٣ —
+      //   شاشات فاضية بدل رسالة مفهومة.
+      const sub = subscriptionStatus(user.tenant);
+      if (sub.state === "locked") {
+        return res.status(403).json({
+          success: false,
+          code: "SUBSCRIPTION_EXPIRED",
+          message: `انتهى اشتراك السنتر في ${arDate(sub.endsAt)}. كلّم الدعم للتجديد.`,
         });
       }
     }
@@ -177,6 +237,7 @@ const login = async (req, res, next) => {
           tenant_id: user.tenant_id,
           tenant_slug: user.tenant?.slug || null,
           tenant_email_domain: user.tenant?.email_domain || null, // ← جديد
+          ...tenantPlan(user.tenant),
           branch_access: formatBranchAccess(user.branch_access),
         },
       },
@@ -203,7 +264,15 @@ const refresh = async (req, res, next) => {
       include: {
         user: {
           include: {
-            tenant: { select: { id: true, slug: true, is_active: true } },
+            tenant: {
+              select: {
+                id: true,
+                slug: true,
+                is_active: true,
+                subscription_ends_at: true,
+                is_trial: true,
+              },
+            },
           },
         },
       },
@@ -225,6 +294,17 @@ const refresh = async (req, res, next) => {
         return res
           .status(403)
           .json({ success: false, message: "Center inactive." });
+      }
+
+      // توكن جديد لسنتر اشتراكه خلص مالوش لازمة — كل طلب بعده
+      // هيترفض من الـ middleware برضه
+      const sub = subscriptionStatus(stored.user.tenant);
+      if (sub.state === "locked") {
+        return res.status(403).json({
+          success: false,
+          code: "SUBSCRIPTION_EXPIRED",
+          message: `انتهى اشتراك السنتر في ${arDate(sub.endsAt)}. كلّم الدعم للتجديد.`,
+        });
       }
     }
 
@@ -292,6 +372,9 @@ const me = async (req, res, next) => {
             name: true,
             slug: true,
             email_domain: true, // ← 1
+            features: true,
+            subscription_ends_at: true,
+            is_trial: true,
           },
         },
         branch_access: BRANCH_ACCESS_SELECT,
@@ -312,6 +395,7 @@ const me = async (req, res, next) => {
         ...rest,
         tenant_slug: tenant?.slug || null,
         tenant_email_domain: tenant?.email_domain || null, // ← 2
+        ...tenantPlan(tenant),
         tenant,
         branch_access: formatBranchAccess(branch_access),
       },

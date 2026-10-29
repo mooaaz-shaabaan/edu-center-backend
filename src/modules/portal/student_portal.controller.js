@@ -567,7 +567,6 @@ const getMe = async (req, res, next) => {
         parent_phone: true,
         alt_phone: true,
         portal_code: true,
-        qr_code: true,
         photo: true,
         created_at: true,
         is_active: true,
@@ -697,7 +696,12 @@ const getMe = async (req, res, next) => {
         parent_phone: student.parent_phone,
         alt_phone: student.alt_phone,
         portal_code: student.portal_code,
-        qr_code: student.qr_code,
+        // ⚠ بتتولّد دلوقتي مش مقروءة من `qr_code` المخزّن.
+        //   الصورة مشتقّة بالكامل من `portal_code`، فالمخزّن
+        //   نسخة تانية من نفس المعلومة وبتبقى بايتة أول ما
+        //   شكل الكود يتغيّر — الطالب القديم كان هيفضل
+        //   شايف كود من غير العلامة للأبد.
+        qr_code: await generateQRCode(student.portal_code),
         photo: student.photo,
         joined_at: student.created_at,
         center_name: student.tenant?.name ?? null,
@@ -976,9 +980,9 @@ const updateMe = async (req, res, next) => {
 /// الطالب بيغيّر رمزه بنفسه.
 ///
 /// ⚠ الرمز ده هو نفسه اللي الماسح بيقرا بيه الحضور —
-///   `attendance.controller` بيدوّر على `portal_code` أو `qr_code`،
-///   والاتنين بيتغيّروا هنا. يعني أي كارت اتطبع أو اتصوّر قبل كده
-///   بيبطل فوراً. ده المقصود من الزرار: للي كارته اتسرّب.
+///   `attendance.controller` بيدوّر بـ `portal_code`. يعني أي كارت
+///   اتطبع أو اتصوّر قبل كده بيبطل فوراً. ده المقصود من
+///   الزرار: للي كارته اتسرّب.
 ///
 /// الجلسة الحالية مابتقفلش — التوكن متوقّع على `sid` مش على الكود.
 const regenerateMyQr = async (req, res, next) => {
@@ -1011,7 +1015,7 @@ const regenerateMyQr = async (req, res, next) => {
 
     await prisma.student.update({
       where: { id: studentId },
-      data: { portal_code: portalCode, qr_code: qrCode },
+      data: { portal_code: portalCode },
     });
 
     // شاشات الموظفين تحدّث الكود عندها

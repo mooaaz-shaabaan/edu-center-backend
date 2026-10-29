@@ -63,10 +63,38 @@ function disconnectUser(userId) {
   }
 }
 
+/**
+ * بيقفل كل اتصالات الـSSE المفتوحة. بتتنده وقت إغلاق السيرفر بس.
+ *
+ * ⚠ من غيرها الإغلاق بياخد ١٠ ثواني كل مرة.
+ *
+ *   `server.close()` معناها «بطّل تستقبل اتصالات جديدة، ونادي
+ *   عليا لما الموجود يخلص». واتصالات الـSSE دي **مابتخلصش
+ *   بطبيعتها** — دي وظيفتها تفضل مفتوحة عشان التحديثات الحيّة.
+ *   فالنداء ماكانش بييجي أبدًا، والعملية كانت تفضل عايشة لحد ما
+ *   مؤقّت الطوارئ يقتلها بعد ١٠ ثواني — ونودمون يطلّع
+ *   EADDRINUSE لأن البورت لسه متاخد.
+ *
+ *   بنقفلهم بإيدنا الأول، فالـ`close` بتلاقي الطريق فاضي.
+ */
+function closeAll() {
+  const open = clients.size;
+  for (const res of clients.keys()) {
+    try {
+      res.end();
+    } catch (_) {
+      // الاتصال مات قبلنا — مش مشكلة، إحنا بنقفل أصلاً
+    }
+  }
+  clients.clear();
+  return open;
+}
+
 module.exports = {
   addClient,
   removeClient,
   notify,
   notifyUser,
   disconnectUser,
+  closeAll,
 };

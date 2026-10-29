@@ -2,6 +2,16 @@
 const jwt = require("jsonwebtoken");
 const prisma = require("../config/db");
 const { hasOpenSession } = require("../core/session");
+const { planDenial } = require("./plan_gate");
+const { subscriptionStatus, parseFeatures } = require("../core/subscription");
+
+/** ٢٠ أكتوبر ٢٠٢٦ */
+const arDate = (d) =>
+  new Intl.DateTimeFormat("ar-EG", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  }).format(new Date(d));
 
 module.exports = async (req, res, next) => {
   const authHeader = req.headers.authorization;
@@ -31,7 +41,14 @@ module.exports = async (req, res, next) => {
         is_active: true,
         token_version: true,
         last_seen_at: true, // ← آخر نبضة من البرنامج
-        tenant: { select: { is_active: true } },
+        tenant: {
+          select: {
+            is_active: true,
+            features: true,
+            subscription_ends_at: true,
+            is_trial: true,
+          },
+        },
         // ← الصلاحيات من الـ DB مباشرة (مش من التوكن)
         branch_access: {
           select: {
@@ -60,6 +77,27 @@ module.exports = async (req, res, next) => {
       });
     }
 
+    // ── الاشتراك ──────────────────────────────────────────
+    //
+    // ⚠ السوبر أدمن مالوش سنتر (tenant_id = null) فمفيش اشتراك
+    //   يقيّده — هو البايع.
+    //
+    //   التاريخ لوحده مش بيقفل: فيه أيام سماح (subscription.js).
+    //   بعد السماح الطلب بيترفض بكود، والبرنامج بيقرا الكود
+    //   ويخرّج المستخدم برسالة مفهومة بدل شاشات فاضية.
+    let subscription = null;
+    if (user.role !== "super_admin" && user.tenant) {
+      subscription = subscriptionStatus(user.tenant);
+
+      if (subscription.state === "locked") {
+        return res.status(403).json({
+          success: false,
+          code: "SUBSCRIPTION_EXPIRED",
+          message: `انتهى اشتراك السنتر في ${arDate(subscription.endsAt)}. كلّم الدعم للتجديد.`,
+        });
+      }
+    }
+
     if (typeof decoded.tv === "number" && decoded.tv !== user.token_version) {
       return res.status(401).json({
         success: false,
@@ -78,6 +116,14 @@ module.exports = async (req, res, next) => {
       });
     }
 
+    // الفيتشرز اللي السنتر دافع عليها — سقف فوق صلاحيات كل
+    // مستخدم فيه. null = مفيش سقف (السوبر أدمن).
+    req.tenantFeatures =
+      user.role === "super_admin" || !user.tenant
+        ? null
+        : parseFeatures(user.tenant.features);
+    req.tenantSubscription = subscription;
+
     req.user = {
       id: user.id,
       role: user.role,
@@ -93,6 +139,32 @@ module.exports = async (req, res, next) => {
           .filter(Boolean),
       })),
     };
+
+    // ⚠ سقف الاشتراك هنا، مش في كل راوت.
+    //
+    //   الفحص كان جوه `requireBranchAccess` بس، و٤ موديولز بس
+    //   هي اللي بتستعمله. الباقي كان على `requireRole` لوحده —
+    //   يعني خدمة موقوفة كانت لسه بتردّ على أي طلب مباشر.
+    //
+    //   `auth` هي النقطة الوحيدة اللي كل الراوتس المحمية
+    //   بتعدّي منها، وهي كمان اللي بتحسب `tenantFeatures` — فهي
+    //   مكانه الطبيعي. راوت جديد بيتحمي لوحده من غير ما حد
+    //   يفتكر يضيف حاجة.
+    //
+    //   `baseUrl + path` مش `path` لوحدها: جوه راوتر متركّب
+    //   `req.path` بتبقى نسبية (`/` مش `/students`).
+    const denied = planDenial(
+      `${req.baseUrl}${req.path}`.replace(/^\/api/, ""),
+      req.tenantFeatures,
+    );
+    if (denied) {
+      return res.status(403).json({
+        success: false,
+        code: "FEATURE_NOT_IN_PLAN",
+        message: "الخدمة دي مش في اشتراك السنتر.",
+        requiredFeature: denied,
+      });
+    }
 
     next();
   } catch (err) {

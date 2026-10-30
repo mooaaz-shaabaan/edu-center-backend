@@ -178,7 +178,7 @@ app.use("/api", (req, res, next) => {
 app.get("/api/health", (req, res) => {
   res.json({
     status: "ok",
-    app: process.env.APP_NAME || "Edu Center",
+    app: process.env.APP_NAME || "Markazi",
     timestamp: new Date().toISOString(),
     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
   });
@@ -231,6 +231,8 @@ app.use("/api", require("./modules/semesters/semesters.routes"));
 app.use("/api/users", require("./modules/users/users.routes"));
 app.use("/api/exams", require("./modules/exams/exams.routes"));
 app.use("/api/tenants", require("./modules/tenants/tenants.routes"));
+// إعلان تحديث البرنامج — مالك النظام بينشر، والكل بيقرا
+app.use("/api/app-release", require("./modules/app_release/app_release.routes"));
 app.use("/api/courses", coursesRoutes);
 app.use("/api/dashboard", require("./modules/dashboard/dashboard.routes"));
 app.use(

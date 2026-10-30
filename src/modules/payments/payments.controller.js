@@ -214,7 +214,7 @@ const getReceipt = async (req, res, next) => {
       amount: payment.amount,
       paid_at: payment.paid_at,
       notes: payment.notes,
-      center_name: process.env.APP_NAME || "Edu Center",
+      center_name: process.env.APP_NAME || "Markazi",
     });
 
     res.setHeader("Content-Type", "text/html; charset=utf-8");

@@ -22,7 +22,7 @@ const generateReceipt = (payment) => {
 </head>
 <body>
   <div class="header">
-    <h1>${payment.center_name || "Edu Center"}</h1>
+    <h1>${payment.center_name || "Markazi"}</h1>
     <p>إيصال دفع</p>
   </div>
   <hr class="divider">

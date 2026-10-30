@@ -83,8 +83,10 @@ app.use(
     // مفيش Origin (تطبيق الديسكتوب، curl، السيرفر لنفسه) → عدّي
     if (!origin) return callback(null, { ...corsBase, origin: true });
 
-    if (isSameOrigin(req, origin) ||
-        allowedOrigins.includes(stripSlash(origin))) {
+    if (
+      isSameOrigin(req, origin) ||
+      allowedOrigins.includes(stripSlash(origin))
+    ) {
       return callback(null, { ...corsBase, origin: true });
     }
 
@@ -232,7 +234,10 @@ app.use("/api/users", require("./modules/users/users.routes"));
 app.use("/api/exams", require("./modules/exams/exams.routes"));
 app.use("/api/tenants", require("./modules/tenants/tenants.routes"));
 // إعلان تحديث البرنامج — مالك النظام بينشر، والكل بيقرا
-app.use("/api/app-release", require("./modules/app_release/app_release.routes"));
+app.use(
+  "/api/app-release",
+  require("./modules/app_release/app_release.routes"),
+);
 app.use("/api/courses", coursesRoutes);
 app.use("/api/dashboard", require("./modules/dashboard/dashboard.routes"));
 app.use(
@@ -301,9 +306,15 @@ app.use(
 
 // ── 404 ───────────────────────────────────────────────────
 app.use((req, res) => {
-  res.status(404).json({ success: false, message: "Route not found" });
-});
+  if (req.originalUrl.startsWith("/api/")) {
+    return res.status(404).json({
+      success: false,
+      message: "Route not found",
+    });
+  }
 
+  res.status(404).sendFile(path.join(__dirname, "../public/404.html"));
+});
 // ── Error Handler (آخر حاجة دايمًا) ───────────────────────
 app.use(errorHandler);
 

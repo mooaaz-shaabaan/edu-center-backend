@@ -272,7 +272,7 @@ const portalPage = (file) => (req, res, next) =>
   );
 
 app.get("/register/:token", portalPage("register.html"));
-app.get("/student", portalPage("me.html"));
+app.get("/my-data", portalPage("me.html"));
 
 // ⚠ أي QR اتطبع أو رسالة اتبعتت قبل كده فيها `/r/` — لازم تفضل
 //   شغالة. ٣٠١ عشان الرابط الجديد هو اللي يبان في المتصفح.

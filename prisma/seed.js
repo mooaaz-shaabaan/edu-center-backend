@@ -8,12 +8,9 @@ const prisma = new PrismaClient();
 function assertSafeInProduction() {
   if (process.env.NODE_ENV !== "production") return;
 
-  const missing = [
-    "SEED_ADMIN_EMAIL",
-    "SEED_ADMIN_PASSWORD",
-    "SEED_TENANT_ADMIN_EMAIL",
-    "SEED_TENANT_ADMIN_PASSWORD",
-  ].filter((key) => !process.env[key]);
+  const missing = ["SEED_ADMIN_EMAIL", "SEED_ADMIN_PASSWORD"].filter(
+    (key) => !process.env[key]
+  );
 
   if (missing.length) {
     console.error(
@@ -26,11 +23,6 @@ function assertSafeInProduction() {
     console.error("\n❌ باسورد الـ Super Admin لازم يكون 10 حروف على الأقل.\n");
     process.exit(1);
   }
-
-  if (String(process.env.SEED_TENANT_ADMIN_PASSWORD).length < 10) {
-    console.error("\n❌ باسورد Admin السنتر لازم يكون 10 حروف على الأقل.\n");
-    process.exit(1);
-  }
 }
 
 async function main() {
@@ -38,10 +30,7 @@ async function main() {
 
   console.log("🌱 Seeding database...");
 
-  // ─────────────────────────────────────────
-  // 1) إنشاء سنتر واحد فقط
-  // ─────────────────────────────────────────
-
+  // 1) سنتر واحد
   const tenant = await prisma.tenant.upsert({
     where: {
       slug: "demo",
@@ -56,11 +45,7 @@ async function main() {
 
   console.log(`✅ Tenant created: ${tenant.name}`);
 
-
-  // ─────────────────────────────────────────
-  // 2) إنشاء فرع واحد للسنتر
-  // ─────────────────────────────────────────
-
+  // 2) فرع واحد
   const branch = await prisma.branch.upsert({
     where: {
       id: 1,
@@ -76,17 +61,10 @@ async function main() {
 
   console.log(`✅ Branch created: ${branch.name}`);
 
-
-  // ─────────────────────────────────────────
-  // 3) إنشاء Super Admin
-  // owner@system.com
-  // ─────────────────────────────────────────
-
-  const SUPER_ADMIN_EMAIL =
-    process.env.SEED_ADMIN_EMAIL || "owner@system.com";
-
-  const SUPER_ADMIN_PASSWORD =
-    process.env.SEED_ADMIN_PASSWORD || "22992921o";
+  // 3) Super Admin
+  // بياخد الإيميل والباسورد من Environment فقط
+  const SUPER_ADMIN_EMAIL = process.env.SEED_ADMIN_EMAIL;
+  const SUPER_ADMIN_PASSWORD = process.env.SEED_ADMIN_PASSWORD;
 
   const superAdminPassword = await bcrypt.hash(
     SUPER_ADMIN_PASSWORD,
@@ -115,16 +93,10 @@ async function main() {
 
   console.log(`✅ Super Admin created: ${superAdmin.email}`);
 
-
-  // ─────────────────────────────────────────
-  // 4) إنشاء Admin واحد فقط للسنتر
-  // ─────────────────────────────────────────
-
-  const TENANT_ADMIN_EMAIL =
-    process.env.SEED_TENANT_ADMIN_EMAIL || "admin@admin.com";
-
-  const TENANT_ADMIN_PASSWORD =
-    process.env.SEED_TENANT_ADMIN_PASSWORD || "admin12345";
+  // 4) Admin السنتر
+  // مش بياخد أي حاجة من Environment
+  const TENANT_ADMIN_EMAIL = `owner@${tenant.email_domain}`;
+  const TENANT_ADMIN_PASSWORD = "22992921O";
 
   const tenantAdminPassword = await bcrypt.hash(
     TENANT_ADMIN_PASSWORD,
@@ -142,7 +114,7 @@ async function main() {
       branch_id: branch.id,
     },
     create: {
-      name: "أدمن السنتر",
+      name: "مالك السنتر",
       email: TENANT_ADMIN_EMAIL,
       password: tenantAdminPassword,
       role: "admin",
@@ -154,9 +126,6 @@ async function main() {
   console.log(`✅ Tenant Admin created: ${tenantAdmin.email}`);
 
   console.log("\n🎉 Seeding complete!");
-  console.log("✅ 1 Center");
-  console.log("✅ 1 Super Admin");
-  console.log("✅ 1 Center Admin");
 }
 
 main()

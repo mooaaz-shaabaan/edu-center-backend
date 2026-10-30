@@ -1,20 +1,19 @@
 (function () {
   "use strict";
 
-  // التوكن من المسار `/register/TOKEN`.
-  // ⚠ `/r/TOKEN` و `?t=` لازم يفضلوا مقبولين: فيه QR مطبوع
-  //   بالشكل القديم، والـ 301 بيشيله بس مش مضمون في كل
-  //   متصفح لو حد نسخ الرابط يدوي.
   var fromPath = location.pathname.match(
-    /\/(?:register|r)\/([A-Za-z0-9_-]{16,})$/,
+    /\/(?:register|r)\/([A-Za-z0-9_-]{16,})$/
   );
+
   var token =
     new URLSearchParams(location.search).get("t") ||
     (fromPath ? fromPath[1] : "") ||
     "";
+
   var $ = function (id) {
     return document.getElementById(id);
   };
+
   var courses = [];
   var semesters = [];
 

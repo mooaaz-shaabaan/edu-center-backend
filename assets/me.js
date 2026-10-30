@@ -819,9 +819,7 @@
       "الاسم: " + (data.name || ""),
       "كود الحضور: " + (data.portal_code || ""),
       "",
-      // ⚠ الرابط الواضح، مش اللي الطالب داخل منه: لو جاي
-      //   من `/student/me` القديم مانورّثوش لحد تاني.
-      "بياناتي: " + location.origin + "/student",
+      "بياناتي: " + location.origin + "/my-data",
     ].join("\n");
 
     window.open(
